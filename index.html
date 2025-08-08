@@ -153,26 +153,52 @@
     .sortable{cursor:pointer}
     .sortable::after{content:" ⬍";opacity:.5;font-weight:400}
 
+    /* ===== Stock list upgrade ===== */
+    .stock-toolbar{
+      display:grid; gap:10px; grid-template-columns:1fr 180px 180px 160px auto;
+      align-items:end; margin-bottom:12px;
+    }
+    .stock-toolbar .field{display:flex;flex-direction:column;gap:6px}
+    .stock-toolbar label{font-size:12px;color:#4b5563}
+
+    #stocklist .table-wrap{overflow:auto;border-radius:12px}
+    #stocklist table{min-width:900px;border-radius:12px;overflow:hidden}
+    #stocklist thead th{position:sticky;top:0;background:#a8dadc;color:#0f2744;z-index:1}
+    #stocklist tbody tr{transition:background .15s ease}
+    #stocklist tbody tr:hover{background:#f6fbff}
+
+    .badge-dot{display:inline-flex;align-items:center;gap:6px}
+    .badge-dot .dot{width:10px;height:10px;border-radius:999px;display:inline-block}
+    .badge-dot .dot.red{background:#e63946}
+    .badge-dot .dot.orange{background:#f4a261}
+
+    .small-btn{padding:6px 10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;font-weight:700;cursor:pointer}
+    .small-btn.danger{background:#ffe5e5;border-color:#ffc9c9;color:#7a1b1b}
+    .small-btn.danger:hover{background:#e63946;color:#fff}
+
+    .stock-summary{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+    .stock-pagination{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+    .stock-pagination .info{margin-right:auto;color:#6b7280;display:flex;align-items:center}
+
     /* ===== Mobile ===== */
     @media (max-width: 768px){
       h1{ font-size:24px; line-height:1.2; margin-bottom:10px }
       .main{ margin-left:0; padding:14px }
       .card{ padding:14px; border-radius:12px }
       .dashboard-grid{ grid-template-columns:1fr }
-      input, select, button{ font-size:16px } /* iOS no-zoom */
+      input, select, button{ font-size:16px }
 
       .sidebar{ width:78vw; max-width:320px; transform:translateX(-100%); box-shadow:0 12px 24px rgba(0,0,0,.25); }
       .sidebar.open{ transform:translateX(0) }
       .collapse-btn{ padding:10px 12px; font-size:16px; }
 
-      .history-toolbar{
-        grid-template-columns:1fr 1fr; 
-      }
+      .history-toolbar{ grid-template-columns:1fr 1fr; }
+      .stock-toolbar{ grid-template-columns:1fr 1fr; }
     }
     .backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.35); backdrop-filter:blur(2px); display:none; z-index:1000; }
     .backdrop.show{ display:block }
 
-    /* FAB เมนูลอย – มุมล่างซ้าย */
+    /* FAB menu */
     .fab-menu{
       position:fixed;
       left:max(14px, env(safe-area-inset-left) + 14px);
@@ -267,30 +293,66 @@
       <button class="action" onclick="addPart()" style="margin-top: 20px;" data-i18n="btn_add">➕ เพิ่ม</button>
     </div>
 
-    <!-- STOCK LIST -->
+    <!-- STOCK LIST (PRO) -->
     <div id="stocklist" class="card" style="display:none">
-      <h2 data-i18n="stock_title">รายการสต็อกทั้งหมด</h2>
-      <input id="searchStock" data-i18n-ph="search_ph2" placeholder="ค้นหา..." oninput="renderStock()">
-      <table>
-        <thead>
-          <tr>
-            <th data-i18n="code">รหัส</th><th data-i18n="name">ชื่อ</th><th data-i18n="model">โมเดล</th>
-            <th data-i18n="brand">ยี่ห้อ</th><th data-i18n="qty">จำนวน</th><th data-i18n="min">ขั้นต่ำ</th>
-            <th data-i18n="delete">ลบ</th>
-          </tr>
-        </thead>
-        <tbody id="stockTable"></tbody>
-      </table>
+      <h2>รายการสต็อกทั้งหมด</h2>
+
+      <div class="stock-summary" id="stockSummary"></div>
+
+      <div class="stock-toolbar">
+        <div class="field">
+          <label>ค้นหา</label>
+          <input id="stockSearch" placeholder="ชื่อ/รหัส/ยี่ห้อ/โมเดล..." />
+        </div>
+        <div class="field">
+          <label>ยี่ห้อ</label>
+          <select id="stockBrand"><option value="">ทั้งหมด</option></select>
+        </div>
+        <div class="field">
+          <label>โมเดล</label>
+          <select id="stockModel"><option value="">ทั้งหมด</option></select>
+        </div>
+        <div class="field">
+          <label>สถานะ</label>
+          <select id="stockStatus">
+            <option value="">ทั้งหมด</option>
+            <option value="near">ใกล้หมด (≤ ขั้นต่ำ)</option>
+            <option value="out">หมด (0)</option>
+          </select>
+        </div>
+        <button class="action" id="stockExport">📤 Export (เฉพาะที่กรอง)</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="sortable" data-sort="code">รหัส</th>
+              <th class="sortable" data-sort="name">ชื่อ</th>
+              <th class="sortable" data-sort="model">โมเดล</th>
+              <th class="sortable" data-sort="brand">ยี่ห้อ</th>
+              <th class="sortable" data-sort="qty">จำนวน</th>
+              <th class="sortable" data-sort="min">ขั้นต่ำ</th>
+              <th>ลบ</th>
+            </tr>
+          </thead>
+          <tbody id="stockTable"></tbody>
+        </table>
+      </div>
+
+      <div class="stock-pagination">
+        <span class="info" id="stockInfo"></span>
+        <button class="small-btn" id="stockPrev">« ก่อนหน้า</button>
+        <button class="small-btn" id="stockNext">ถัดไป »</button>
+      </div>
     </div>
 
-    <!-- HISTORY (ใหม่) -->
+    <!-- HISTORY -->
     <div id="history" class="card" style="display:none">
       <h2>ประวัติ</h2>
 
-      <!-- Summary chips -->
       <div class="history-summary" id="historySummary"></div>
 
-      <!-- Toolbar -->
       <div class="history-toolbar">
         <div class="field">
           <label>ค้นหา</label>
@@ -340,7 +402,7 @@
       </div>
     </div>
 
-    <!-- EXPORT -->
+    <!-- EXPORT (รายเดือน) -->
     <div id="export" class="card" style="display:none">
       <h2 data-i18n="export_title">📁 Export History</h2>
       <label data-i18n="select_month">Select Month</label>
@@ -579,20 +641,139 @@
     }catch(err){ console.error(err); toast(String(err),'error'); }
   }
 
-  /* ===== STOCK LIST ===== */
-  function renderStock(){
-    const kw = (document.getElementById('searchStock').value||'').toLowerCase();
-    const tb = document.getElementById('stockTable'); tb.innerHTML='';
-    parts.filter(p=>[p.name,p.code,p.brand,p.model].some(x=>(x||'').toLowerCase().includes(kw)))
-      .forEach((p,i)=>{
-        const tr=document.createElement('tr');
-        tr.innerHTML = `
-          <td>${p.code}</td><td>${p.name}</td><td>${p.model||'-'}</td><td>${p.brand}</td>
-          <td>${p.qty}</td><td>${p.min}</td>
-          <td>${userRole==='admin'?`<button class="delete-btn" onclick="deletePart(${i})">${t('delete')}</button>`:'-'}</td>`;
-        tb.appendChild(tr);
-      });
+  /* ===== STOCK LIST – Pro UI ===== */
+  const stockState = { page:1, perPage:20, sortKey:'code', sortDir:'asc', filtered:[] };
+
+  function uniqueSorted(arr, key){
+    return [...new Set(arr.map(o => (o[key]||'').toString()))]
+           .filter(Boolean).sort((a,b)=>a.localeCompare(b));
   }
+  function populateStockFilters(){
+    const brandSel = document.getElementById('stockBrand');
+    const modelSel = document.getElementById('stockModel');
+    if(!brandSel || !modelSel) return;
+    const brands = uniqueSorted(parts, 'brand');
+    const models = uniqueSorted(parts, 'model');
+    brandSel.innerHTML = '<option value="">ทั้งหมด</option>' + brands.map(b=>`<option>${b}</option>`).join('');
+    modelSel.innerHTML = '<option value="">ทั้งหมด</option>' + models.map(m=>`<option>${m}</option>`).join('');
+  }
+  function applyStockFilters(){
+    const q = (document.getElementById('stockSearch')?.value||'').toLowerCase().trim();
+    const brand = document.getElementById('stockBrand')?.value || '';
+    const model = document.getElementById('stockModel')?.value || '';
+    const status = document.getElementById('stockStatus')?.value || '';
+
+    let rows = parts.slice();
+    if(brand) rows = rows.filter(p => (p.brand||'') === brand);
+    if(model) rows = rows.filter(p => (p.model||'') === model);
+    if(status==='near') rows = rows.filter(p => (+p.qty||0) > 0 && (+p.qty||0) <= (+p.min||0));
+    if(status==='out')  rows = rows.filter(p => (+p.qty||0) === 0);
+
+    if(q){
+      rows = rows.filter(p=>{
+        const bag = [p.code,p.name,p.brand,p.model].map(x=> (x||'').toLowerCase()).join('|');
+        return bag.includes(q);
+      });
+    }
+
+    rows.sort((a,b)=>{
+      const dir = stockState.sortDir === 'asc' ? 1 : -1;
+      let va = a[stockState.sortKey], vb = b[stockState.sortKey];
+      if(stockState.sortKey==='qty'||stockState.sortKey==='min'){ va=+va||0; vb=+vb||0; }
+      else { va=(va||'').toString().toLowerCase(); vb=(vb||'').toString().toLowerCase(); }
+      return (va>vb?1:va<vb?-1:0)*dir;
+    });
+
+    stockState.filtered = rows;
+    stockState.page = 1;
+    renderStockTable();
+    renderStockSummary();
+  }
+  function renderStockTable(){
+    const tb = document.getElementById('stockTable'); if(!tb) return;
+    tb.innerHTML = '';
+    const {page, perPage, filtered} = stockState;
+    const start = (page-1)*perPage, end = start + perPage;
+    const slice = filtered.slice(start, end);
+
+    slice.forEach((p)=>{
+      const i = parts.findIndex(x=>x.id===p.id);
+      const near = (+p.qty||0) > 0 && (+p.qty||0) <= (+p.min||0);
+      const out  = (+p.qty||0) === 0;
+
+      const tr=document.createElement('tr');
+      tr.innerHTML = `
+        <td>${p.code}</td>
+        <td>${p.name}</td>
+        <td>${p.model||'-'}</td>
+        <td>${p.brand||'-'}</td>
+        <td>
+          <span class="badge-dot">
+            ${out ? '<span class="dot red"></span>' : (near ? '<span class="dot orange"></span>' : '')}
+            <b>${p.qty}</b>
+          </span>
+        </td>
+        <td>${p.min}</td>
+        <td>${userRole==='admin'?`<button class="small-btn danger" onclick="deletePart(${i})">ลบ</button>`:'-'}</td>`;
+      tb.appendChild(tr);
+    });
+
+    const info = document.getElementById('stockInfo');
+    if(info){
+      info.textContent = filtered.length
+        ? `แสดง ${Math.min(end, filtered.length)}/${filtered.length} รายการ (หน้า ${page})`
+        : 'ไม่พบข้อมูลตามตัวกรอง';
+    }
+  }
+  function renderStockSummary(){
+    const box = document.getElementById('stockSummary'); if(!box) return;
+    const rows = stockState.filtered;
+    const totalQty = rows.reduce((s,p)=>s+(+p.qty||0),0);
+    const near = rows.filter(p => (+p.qty||0) > 0 && (+p.qty||0) <= (+p.min||0)).length;
+    const out  = rows.filter(p => (+p.qty||0) === 0).length;
+
+    const chip = (label)=>`<div class="chip">${label}</div>`;
+    box.innerHTML = [
+      chip(`ทั้งหมด <b>${rows.length}</b> รายการ`),
+      chip(`<span class="badge-dot"><span class="dot orange"></span> ใกล้หมด</span> ${near}`),
+      chip(`<span class="badge-dot"><span class="dot red"></span> หมด</span> ${out}`),
+      chip(`ยอดคงเหลือรวม <b>${totalQty}</b> ชิ้น`)
+    ].join('');
+  }
+  function renderStock(){ populateStockFilters(); applyStockFilters(); }
+  function initStockControls(){
+    ['stockSearch','stockBrand','stockModel','stockStatus'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(!el) return;
+      el.addEventListener('input', applyStockFilters);
+      el.addEventListener('change', applyStockFilters);
+    });
+    document.getElementById('stockPrev')?.addEventListener('click', ()=>{
+      if(stockState.page>1){ stockState.page--; renderStockTable(); }
+    });
+    document.getElementById('stockNext')?.addEventListener('click', ()=>{
+      const max = Math.ceil(stockState.filtered.length / stockState.perPage);
+      if(stockState.page<max){ stockState.page++; renderStockTable(); }
+    });
+    document.querySelectorAll('#stocklist thead .sortable').forEach(th=>{
+      th.addEventListener('click', ()=>{
+        const key = th.dataset.sort;
+        stockState.sortKey = key;
+        stockState.sortDir = (stockState.sortDir==='asc'?'desc':'asc');
+        applyStockFilters();
+      });
+    });
+    document.getElementById('stockExport')?.addEventListener('click', ()=>{
+      const rows = stockState.filtered;
+      if(!rows.length) return toast('ไม่มีข้อมูลให้ส่งออก','warn');
+      let csv='Code,Name,Model,Brand,Qty,Min\n';
+      rows.forEach(p=>{ csv+=`${p.code},${p.name},${p.model||''},${p.brand||''},${p.qty||0},${p.min||0}\n`; });
+      const blob=new Blob([csv],{type:'text/csv'});
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='stock_filtered.csv'; a.click();
+    });
+  }
+
+  /* ===== DELETE (ใช้ของเดิม) ===== */
   async function deletePart(i){
     if(userRole!=='admin') return toast(t('err_not_admin'),'error');
     if(!confirm(t('err_confirm_delete'))) return;
@@ -607,7 +788,7 @@
     }catch(err){ console.error(err); toast(String(err),'error'); }
   }
 
-  /* ===== HISTORY (โปรใหม่) ===== */
+  /* ===== HISTORY (โปร) ===== */
   let histState = { page:1, perPage:20, sortKey:'date', sortDir:'desc', filtered:[] };
 
   function applyHistoryFilters(){
@@ -646,18 +827,14 @@
       return (va>vb?1:va<vb?-1:0)*dir;
     });
 
-    histState.filtered = rows;
-    histState.page = 1;
-    renderHistoryTable();
-    renderHistorySummary();
+    histState.filtered = rows; histState.page = 1;
+    renderHistoryTable(); renderHistorySummary();
   }
-
   function renderHistoryTable(){
     const tb = document.getElementById('historyTable'); if(!tb) return; tb.innerHTML='';
     const {page, perPage, filtered} = histState;
     const start = (page-1)*perPage, end = start + perPage;
     const slice = filtered.slice(start, end);
-
     slice.forEach(r=>{
       const tr=document.createElement('tr');
       tr.className = `fade-in ${r.type==='add'?'add':'withdraw'}`;
@@ -672,7 +849,6 @@
         <td>${r.withdraw_by||'-'}</td>`;
       tb.appendChild(tr);
     });
-
     const info = document.getElementById('histInfo');
     if(info){
       info.textContent = filtered.length
@@ -680,21 +856,18 @@
         : 'ไม่พบข้อมูลตามตัวกรอง';
     }
   }
-
   function renderHistorySummary(){
     const box = document.getElementById('historySummary'); if(!box) return; box.innerHTML='';
     const rows = histState.filtered;
     const adds = rows.filter(r=>r.type==='add');
     const wds  = rows.filter(r=>r.type==='withdraw');
     const totalQty = rows.reduce((s,r)=>s+(+r.qty||0),0);
-
     const makeChip = (html)=>{ const c=document.createElement('div'); c.className='chip'; c.innerHTML=html; return c; };
     box.appendChild(makeChip(`ทั้งหมด <b>${rows.length}</b> รายการ`));
     box.appendChild(makeChip(`<span class="badge add">add</span> ${adds.length}`));
     box.appendChild(makeChip(`<span class="badge withdraw">withdraw</span> ${wds.length}`));
     box.appendChild(makeChip(`ยอดจำนวนรวม <b>${totalQty}</b>`));
   }
-
   function initHistoryControls(){
     const s = id=>document.getElementById(id);
     ['histSearch','histType','histFrom','histTo'].forEach(id=>{
@@ -787,7 +960,7 @@
     }catch(err){ console.error(err); toast(String(err),'error'); }
   }
 
-  /* ===== EXPORT ===== */
+  /* ===== EXPORT (report รายเดือน) ===== */
   function ensureExportYears(){
     const sel=document.getElementById('exportYear'); if(sel.children.length) return;
     const y=new Date().getFullYear();
@@ -814,21 +987,17 @@
   /* ===== INIT ===== */
   window.appLang = localStorage.getItem('lang') || 'th';
   buildMenu(); updateRoleLabel();
-  // แปลรอบแรก
   document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = t(el.getAttribute('data-i18n')); });
   document.querySelectorAll('[data-i18n-ph]').forEach(el=>{ el.placeholder = t(el.getAttribute('data-i18n-ph')); });
 
-  // เปิดหน้าแรก (staff -> withdraw)
   const savedPage = localStorage.getItem('currentPage') || 'withdraw';
   showPage(savedPage);
 
-  // init controls ของหน้า History
   initHistoryControls();
+  initStockControls();
 
-  // โหลดข้อมูลจากชีต
   loadDataFromDB();
 
-  // ซ่อน FAB ตอนเลื่อนลง โชว์ตอนเลื่อนขึ้น
   (function autoHideFab(){
     let lastY = window.scrollY;
     const fab = document.querySelector('.fab-menu');
