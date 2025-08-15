@@ -1,0 +1,401 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Stock App</title>
+
+  <!-- Fonts: ไทย + จีน -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.SUPA = {
+      url:  "https://utldpbyewkohuoyhzaat.supabase.co",
+      anon: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV0bGRwYnlld2tvaHVveWh6YWF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNjg4MTIsImV4cCI6MjA3MDc0NDgxMn0.65_11061GKODroeQFB_1vqBR54spYTs8oSgfujhMCoc"
+    };
+    window.supa = supabase.createClient(SUPA.url, SUPA.anon);
+  </script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <div class="h-wrap">
+      <div class="brand">Stock MPR</div>
+      <span class="pill">Toshiba</span>
+      <div class="grow"></div>
+
+      <!-- Language toggle -->
+      <button class="secondary" id="btnLang" title="Switch Language">中文</button>
+
+      <button class="secondary" id="btnSync" data-i18n="btn.sync">ซิงก์</button>
+      <button class="secondary1" id="btnLoginOpen" data-i18n="btn.login">เข้าสู่ระบบ</button>
+      <button class="secondary2" id="btnLogout" style="display:none" data-i18n="btn.logout">ออกจากระบบ</button>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <div class="container">
+    <!-- DASHBOARD -->
+    <section class="page" id="page-dashboard" data-page>
+      <div class="grid">
+        <div class="kpi-row">
+          <div class="kpi-box kpi-green">
+            <div class="kpi-head" data-i18n="kpi.partsLeft">📦 อะไหล่คงเหลือ</div>
+            <div class="kpi-num"><span id="k_sumQty">0</span> <span data-i18n="unit.piece">ชิ้น</span></div>
+          </div>
+          <div class="kpi-box kpi-orange">
+            <div class="kpi-head" data-i18n="kpi.nearOut">⚠️ ใกล้หมด</div>
+            <div class="kpi-num"><span id="k_near">0</span> <span data-i18n="unit.item">รายการ</span></div>
+          </div>
+          <div class="kpi-box kpi-red">
+            <div class="kpi-head" data-i18n="kpi.outOfStock">🚨 ขาดสต็อก</div>
+            <div class="kpi-num"><span id="k_out">0</span> <span data-i18n="unit.item">รายการ</span></div>
+          </div>
+        </div>
+
+        <div class="card soft">
+          <h3 class="section-title" data-i18n="dash.alertTitle">อะไหล่ใกล้/หมดสต็อก</h3>
+          <div class="legend">
+            <span class="dot red"></span> <span data-i18n="legend.red">จุดแดง = หมด</span>
+            <span class="spacer">•</span>
+            <span class="dot orange"></span> <span data-i18n="legend.orange">จุดส้ม = ใกล้หมด</span>
+          </div>
+          <div id="dashAlerts" class="alert-list"></div>
+        </div>
+      </div>
+
+      <!-- TOP 5 ISSUED -->
+      <div class="card soft">
+        <div class="toolbar" style="gap:10px; align-items:center">
+          <h3 class="section-title" style="margin:0" data-i18n="dash.top5">Top 5 อะไหล่ที่เบิกบ่อย</h3>
+          <div class="grow"></div>
+          <select id="topDays" title="ช่วงเวลา">
+            <option value="30" data-i18n="days.30">30 วัน</option>
+            <option value="90" data-i18n="days.90">90 วัน</option>
+            <option value="180" data-i18n="days.180">180 วัน</option>
+          </select>
+        </div>
+        <div id="dashTop5" class="top5-list"></div>
+      </div>
+    </section>
+
+    <!-- STOCK (Manage) -->
+    <section class="page" id="page-stock" data-page hidden>
+      <div class="card grid">
+        <div class="toolbar">
+          <div class="title" data-i18n="stock.title">สต็อกทั้งหมด</div>
+          <div class="grow"></div>
+          <input id="stockQ" data-i18n-placeholder="ph.stock.search" placeholder="ค้นหา: รหัส/ชื่อ/หมวด/ยี่ห้อ/โมเดล" style="max-width:360px" />
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl" id="stockTbl">
+            <thead>
+              <tr>
+                <th data-i18n="col.code">รหัส</th>
+                <th data-i18n="col.name">ชื่อ</th>
+                <th data-i18n="col.category">หมวด</th>
+                <th data-i18n="col.brandModel">ยี่ห้อ/โมเดล</th>
+                <th data-i18n="col.qty">คงเหลือ</th>
+                <th>Min</th>
+                <th data-i18n="col.location">ที่เก็บ</th>
+                <th style="width:120px" data-i18n="col.actions">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody><!-- render by JS --></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- RECEIVE (เพิ่มเข้าสต็อก) -->
+    <section class="page" id="page-receive" data-page hidden>
+      <div class="card grid">
+        <div class="toolbar">
+          <div class="title" data-i18n="receive.title">เพิ่มของเข้าสต็อก</div>
+          <div class="grow"></div>
+        </div>
+
+        <div class="grid">
+          <div class="row"><label data-i18n="form.code">รหัส</label><input id="rc_code" data-i18n-placeholder="ph.code" placeholder="เช่น P-0001" /></div>
+          <div class="row"><label data-i18n="form.name">ชื่อ</label><input id="rc_name" data-i18n-placeholder="ph.partName" placeholder="ชื่ออะไหล่" /></div>
+          <div class="grid-2">
+            <div class="row"><label data-i18n="form.model">โมเดล</label><input id="rc_model" data-i18n-placeholder="ph.model" placeholder="เช่น E2E" /></div>
+            <div class="row"><label data-i18n="form.brand">ยี่ห้อ</label><input id="rc_brand" data-i18n-placeholder="ph.brand" placeholder="เช่น OMRON" /></div>
+          </div>
+          <div class="grid-2">
+            <div class="row"><label data-i18n="form.qty">จำนวน</label><input id="rc_qty" type="number" inputmode="numeric" value="1" /></div>
+            <div class="row"><label data-i18n="form.min">ขั้นต่ำ</label><input id="rc_min" type="number" inputmode="numeric" value="0" /></div>
+          </div>
+          <div class="row"><label data-i18n="form.location">ชั้นที่เก็บ</label><input id="rc_loc" data-i18n-placeholder="ph.location" placeholder="เช่น ชั้น A2 กล่อง 05" /></div>
+          <div class="row"><label data-i18n="form.category">หมวดหมู่</label><input id="rc_cat" list="dlCats" data-i18n-placeholder="ph.category" placeholder="เช่น Bearing / Sensor / Belt" /></div>
+
+          <div class="row">
+            <label data-i18n="form.image">แนบรูป (ไฟล์ภาพ)</label>
+            <input id="rc_img" type="file" accept="image/*" />
+            <div class="uploader">
+              <img id="rc_preview" alt="" />
+              <button class="btn-xs secondary" type="button" id="rc_clearImg" data-i18n="btn.clearImage">ลบรูป</button>
+            </div>
+          </div>
+
+          <div class="row">
+            <button id="rc_submit" data-i18n="btn.receiveSave">บันทึกรับเข้า</button>
+          </div>
+          <div class="meta" data-i18n="receive.note">* ถ้ารหัสมีอยู่แล้ว ระบบจะอัปเดตรายการและเพิ่มจำนวนให้</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEARCH / QUICK ISSUE -->
+    <section class="page" id="page-search" data-page hidden>
+      <div class="card grid">
+        <div class="toolbar">
+          <input id="q" class="grow" data-i18n-placeholder="ph.search" placeholder="ค้นหา: รหัส/ชื่อ/หมวดหมู่/ยี่ห้อ/โมเดล" />
+          <button id="btnClear" class="secondary" data-i18n="btn.clear">ล้าง</button>
+        </div>
+        <div class="row grid-2">
+          <div class="row">
+            <label data-i18n="filter.status">สถานะ</label>
+            <select id="fltStatus">
+              <option value="" data-i18n="status.all">ทั้งหมด</option>
+              <option value="below" data-i18n="status.below">ต่ำกว่า Min</option>
+              <option value="near" data-i18n="status.near">ใกล้หมด</option>
+              <option value="out" data-i18n="status.out">หมด</option>
+              <option value="ok" data-i18n="status.ok">ปกติ</option>
+            </select>
+          </div>
+          <div class="row">
+            <label data-i18n="filter.category">หมวดหมู่</label>
+            <input id="fltCat" list="dlCats" data-i18n-placeholder="ph.filterCat" placeholder="เช่น Bearing"/>
+          </div>
+        </div>
+      </div>
+      <div class="gallery" id="galleryWrap"></div>
+    </section>
+
+    <!-- HISTORY -->
+    <section class="page" id="page-history" data-page hidden>
+      <div class="card grid">
+        <div class="toolbar">
+          <div class="title" data-i18n="history.title">ประวัติการทำรายการ</div>
+          <div class="grow"></div>
+          <input id="hQ" data-i18n-placeholder="ph.history.search" placeholder="ค้นหา: รหัส/ชื่อ/ผู้ดำเนินการ/หมายเหตุ" style="max-width:320px">
+        </div>
+
+        <div class="row grid-2">
+          <div class="row">
+            <label data-i18n="history.month">เดือน</label>
+            <select id="hMonth">
+              <option value="1"  data-i18n="month.1">ม.ค.</option>
+              <option value="2"  data-i18n="month.2">ก.พ.</option>
+              <option value="3"  data-i18n="month.3">มี.ค.</option>
+              <option value="4"  data-i18n="month.4">เม.ย.</option>
+              <option value="5"  data-i18n="month.5">พ.ค.</option>
+              <option value="6"  data-i18n="month.6">มิ.ย.</option>
+              <option value="7"  data-i18n="month.7">ก.ค.</option>
+              <option value="8"  data-i18n="month.8">ส.ค.</option>
+              <option value="9"  data-i18n="month.9">ก.ย.</option>
+              <option value="10" data-i18n="month.10">ต.ค.</option>
+              <option value="11" data-i18n="month.11">พ.ย.</option>
+              <option value="12" data-i18n="month.12">ธ.ค.</option>
+            </select>
+          </div>
+          <div class="row">
+            <label data-i18n="history.year">ปี</label>
+            <select id="hYear"></select>
+          </div>
+        </div>
+
+        <div class="row">
+          <label data-i18n="history.type">ประเภท</label>
+          <div class="chipset" id="hTypeSet">
+            <button class="chip is-active" data-type="" data-i18n="type.all">ทั้งหมด</button>
+            <button class="chip" data-type="รับ" data-i18n="type.in">รับเข้า</button>
+            <button class="chip" data-type="เบิก" data-i18n="type.out">เบิกออก</button>
+          </div>
+        </div>
+
+        <div class="tbl-wrap">
+          <table class="tbl" id="hTbl">
+            <thead>
+              <tr>
+                <th data-i18n="col.datetime">วัน-เวลา</th>
+                <th data-i18n="col.code">รหัส</th>
+                <th data-i18n="col.name">ชื่อ</th>
+                <th data-i18n="col.type">ประเภท</th>
+                <th data-i18n="col.model">โมเดล</th>
+                <th data-i18n="col.qty">จำนวน</th>
+                <th data-i18n="col.by">ผู้ดำเนินการ</th>
+              </tr>
+            </thead>
+            <tbody><!-- render by JS --></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- EXPORT -->
+    <section class="page" id="page-export" data-page hidden>
+      <div class="card grid">
+        <div class="toolbar">
+          <div class="title" data-i18n="export.title">ส่งออกประวัติเป็น CSV</div>
+          <div class="grow"></div>
+        </div>
+
+        <div class="row grid-2">
+          <div class="row">
+            <label data-i18n="history.month">เดือน</label>
+            <select id="exMonth">
+              <option value="1"  data-i18n="month.1">ม.ค.</option>
+              <option value="2"  data-i18n="month.2">ก.พ.</option>
+              <option value="3"  data-i18n="month.3">มี.ค.</option>
+              <option value="4"  data-i18n="month.4">เม.ย.</option>
+              <option value="5"  data-i18n="month.5">พ.ค.</option>
+              <option value="6"  data-i18n="month.6">มิ.ย.</option>
+              <option value="7"  data-i18n="month.7">ก.ค.</option>
+              <option value="8"  data-i18n="month.8">ส.ค.</option>
+              <option value="9"  data-i18n="month.9">ก.ย.</option>
+              <option value="10" data-i18n="month.10">ต.ค.</option>
+              <option value="11" data-i18n="month.11">พ.ย.</option>
+              <option value="12" data-i18n="month.12">ธ.ค.</option>
+            </select>
+          </div>
+          <div class="row">
+            <label data-i18n="history.year">ปี</label>
+            <select id="exYear"></select>
+          </div>
+        </div>
+
+        <div class="row">
+          <button id="btnExportCsv" data-i18n="btn.exportCsv">ดาวน์โหลดไฟล์ CSV</button>
+        </div>
+
+        <div class="meta" data-i18n="export.note">ไฟล์เข้ารหัส UTF-8 (มี BOM) รองรับภาษาไทย เปิดได้ทั้ง Excel และ Google Sheets</div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="page" id="page-settings" data-page hidden>
+      <div class="card grid">
+        <h3 data-i18n="settings.title">ตั้งรหัสผ่านผู้ดูแลระบบ</h3>
+        <div class="row"><input id="newAdminPass" type="password" data-i18n-placeholder="ph.newPass" placeholder="รหัสผ่านใหม่" /></div>
+        <button id="btnSetAdminPass" data-i18n="btn.setAdminPass">ตั้งรหัสผ่านใหม่</button>
+
+        <h3 data-i18n="settings.conn">การเชื่อมต่อ</h3>
+        <div class="meta" data-i18n="settings.note">
+          * ค่า API และโฟลเดอร์ Drive ถูกกำหนดไว้ในโค้ดแล้ว — ไม่ต้องตั้งจากหน้าเว็บ
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- MODALS (Issue/Edit/Login) -->
+  <div class="modal" id="issueModal" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__panel">
+      <div class="modal__head">
+        <button class="modal__close" type="button" data-close aria-label="ปิด">×</button>
+        <div class="modal__title" data-i18n="modal.issue.title">เบิกอะไหล่</div>
+      </div>
+      <div class="modal__body">
+        <div class="summary">
+          <img id="m_img" class="thumb-lg" alt="" />
+          <div class="sum-txt">
+            <div id="m_title" class="name"></div>
+            <div id="m_meta" class="meta"></div>
+          </div>
+        </div>
+        <div class="m-row"><label data-i18n="modal.issue.qty">จำนวนที่เบิก *</label><input id="m_qty" type="number" inputmode="numeric" placeholder="เช่น 1" /></div>
+        <div class="m-row"><label data-i18n="modal.issue.by">ชื่อผู้เบิก *</label><input id="m_by" data-i18n-placeholder="ph.requestBy" placeholder="ผู้เบิก" /></div>
+        <div class="m-row"><label data-i18n="modal.issue.machine">เครื่องจักร</label><input id="m_machine" list="dlMachines" data-i18n-placeholder="ph.machine" placeholder="เครื่องจักร" /></div>
+        <div class="m-row"><label data-i18n="modal.issue.dept">แผนก</label><input id="m_dept" list="dlDepts" data-i18n-placeholder="ph.dept" placeholder="แผนก" /></div>
+        <div class="m-row"><label data-i18n="modal.issue.note">หมายเหตุ</label><input id="m_note" data-i18n-placeholder="ph.note" placeholder="เพิ่มเติม (ถ้ามี)" /></div>
+      </div>
+      <div class="modal__foot">
+        <button class="secondary" data-close data-i18n="btn.cancel">ยกเลิก</button>
+        <button id="m_confirm" data-i18n="btn.confirmIssue">ยืนยันเบิก</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="editModal" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__panel">
+      <div class="modal__head">
+        <button class="modal__close" type="button" data-close aria-label="ปิด">×</button>
+        <div class="modal__title" data-i18n="modal.edit.title">แก้ไขอะไหล่</div>
+      </div>
+      <div class="modal__body">
+        <div class="m-row"><label data-i18n="form.codeLong">รหัส (Code)</label><input id="e_code" /></div>
+        <div class="m-row"><label data-i18n="form.name">ชื่อ</label><input id="e_name" /></div>
+        <div class="m-row"><label data-i18n="form.category">หมวดหมู่</label><input id="e_cat" list="dlCats" /></div>
+        <div class="grid-2">
+          <div class="m-row"><label data-i18n="form.brand">ยี่ห้อ</label><input id="e_brand" /></div>
+          <div class="m-row"><label data-i18n="form.model">โมเดล</label><input id="e_model" /></div>
+        </div>
+        <div class="grid-2">
+          <div class="m-row"><label data-i18n="form.qtyLong">คงเหลือ (Qty)</label><input id="e_qty" type="number" /></div>
+          <div class="m-row"><label data-i18n="form.minLong">ขั้นต่ำ (Min)</label><input id="e_min" type="number" /></div>
+        </div>
+        <div class="m-row"><label data-i18n="form.location">ที่เก็บ</label><input id="e_loc" /></div>
+        <div class="m-row"><label data-i18n="form.imageUrl">รูป (URL)</label><input id="e_img" /></div>
+      </div>
+      <div class="modal__foot">
+        <button class="secondary" data-close data-i18n="btn.cancel">ยกเลิก</button>
+        <button id="e_save" data-i18n="btn.save">บันทึก</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="loginModal" aria-hidden="true">
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__panel">
+      <div class="modal__head">
+        <button class="modal__close" data-close>×</button>
+        <div class="modal__title" data-i18n="modal.login.title">เข้าสู่ระบบ</div>
+      </div>
+      <div class="modal__body">
+        <div class="m-row">
+          <label data-i18n="modal.login.selectRole">เลือกประเภทผู้ใช้งาน</label>
+          <select id="loginRole">
+            <option value="guest" data-i18n="role.guest">พนักงาน (ไม่ต้องใช้รหัส)</option>
+            <option value="admin" data-i18n="role.admin">แอดมิน</option>
+          </select>
+        </div>
+        <div class="m-row" id="adminPassRow" style="display:none">
+          <label data-i18n="modal.login.password">รหัสผ่าน</label>
+          <input id="loginPassword" type="password" data-i18n-placeholder="ph.password" placeholder="••••••••" />
+        </div>
+      </div>
+      <div class="modal__foot">
+        <button class="secondary" data-close data-i18n="btn.cancel">ยกเลิก</button>
+        <button id="btnLogin" data-i18n="btn.login">เข้าสู่ระบบ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- datalists -->
+  <datalist id="dlParts"></datalist>
+  <datalist id="dlCats"></datalist>
+  <datalist id="dlMachines"></datalist>
+  <datalist id="dlDepts"></datalist>
+
+  <!-- notifications -->
+  <div id="notiStack" class="noti-stack"></div>
+
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav">
+    <button class="nav-btn" data-tab="dashboard">🏠<span data-i18n="nav.dashboard">แดชบอร์ด</span></button>
+    <button class="nav-btn" data-tab="stock">📦<span data-i18n="nav.stock">สต็อก</span></button>
+    <button class="nav-btn" data-tab="receive">📥<span data-i18n="nav.receive">รับเข้า</span></button>
+    <button class="nav-btn" data-tab="search">🔍<span data-i18n="nav.search">ค้นหา/เบิก</span></button>
+    <button class="nav-btn" data-tab="history">🧾<span data-i18n="nav.history">ประวัติ</span></button>
+    <button class="nav-btn" data-tab="export">📤<span data-i18n="nav.export">ส่งออก</span></button>
+    <button class="nav-btn" data-tab="settings">⚙️<span data-i18n="nav.settings">ตั้งค่า</span></button>
+  </nav>
+</body>
+</html>
