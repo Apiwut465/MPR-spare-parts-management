@@ -1506,8 +1506,28 @@ function notify({ title='', message='', level='info', timeout=2600, icon } = {})
   };
 })();
 
+// ===== Compact bottom-nav labels on very small screens =====
+(function compactNavLabels(){
+  const tiny = window.matchMedia('(max-width: 360px)').matches;
+  if(!tiny) return;
+
+  const map = new Map([
+    ['แดชบอร์ด', 'แดช'],
+    ['สต็อก', 'สต็อก'],       // คงเดิม
+    ['รับเข้า', 'รับ'],
+    ['ค้นหา/เบิก', 'ค้นหา'],
+    ['ประวัติ', 'ประวัติ'],    // คงเดิม
+    ['ส่งออก', 'ส่งออก']       // คงเดิม
+  ]);
+
+  document.querySelectorAll('.bottom-nav .nav-btn span').forEach(el=>{
+    const t = (el.textContent||'').trim();
+    if(map.has(t)) el.textContent = map.get(t);
+  });
+})();
 
 /* ===== Init ===== */
 loadAll();
 initBottomNav();
 updateAuthUI();
+
