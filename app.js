@@ -92,7 +92,7 @@ function saveDemo(){
 function renderDatalists(){
   const dl = $('#dlParts'); if(dl){ dl.innerHTML=''; state.parts.forEach(p=>{ const o=document.createElement('option'); o.value=p.PartID; o.label=p.Name; dl.appendChild(o); });}
   const dc = $('#dlCats'); if(dc){ dc.innerHTML=''; state.categories.forEach(c=>{ const o=document.createElement('option'); o.value=c; dc.appendChild(o); });}
-  const dm = $('#dlMachines'); if(dm){ dm.innerHTML=''; state.machines.forEach(m=>{ const o=document.createElement('option'); o.value=m; dm.appendChild(o); });}
+  const dm = $('#dlMachines'); if(dm){ dm.innerHTML=''; state.machines.forEach(m=>{ const o=document.createElement('option'); o.value=m; dl.appendChild?0:0; dm.appendChild(o); });}
   const dd = $('#dlDepts'); if(dd){ dd.innerHTML=''; state.depts.forEach(d=>{ const o=document.createElement('option'); o.value=d; dd.appendChild(o); });}
 }
 
@@ -116,12 +116,20 @@ function renderDashboard(){
       else if(st==='ใกล้หมด' || st==='ต่ำกว่า Min') it.classList.add('bar-orange');
 
       const body = document.createElement('div'); body.style.flex='1';
-      const title = document.createElement('div'); title.className='alert-title '+(st==='หมด'?'t-red':'t-orange'); title.textContent = `${p.PartID} — ${p.Name}`;
- const meta  = document.createElement('div'); 
+      const title = document.createElement('div'); 
+      title.className='alert-title '+(st==='หมด'?'t-red':'t-orange'); 
+      // ⬇️ เปลี่ยนให้โชว์ "ชื่ออะไหล่" แทน "รหัส — ชื่อ"
+      title.textContent = `${p.Name || p.PartID || ''} / Model : ${p.Model||''} `;
+
+      const meta  = document.createElement('div'); 
       meta.className='alert-meta'; 
       // ⬇️ เปลี่ยนจากหมวดหมู่ (Category) เป็นยี่ห้อ (Brand)
      meta.textContent = `คงเหลือ ${p.Qty??0} • Min ${p.Min??0} • ${p.Brand||'-'} • ${p.Location||'-'} • ${p.PartID||'-'}`;
-      body.appendChild(title); body.appendChild(meta); it.appendChild(body); wrap.appendChild(it);
+
+      body.appendChild(title); 
+      body.appendChild(meta); 
+      it.appendChild(body); 
+      wrap.appendChild(it);
     });
   }
 
@@ -1503,4 +1511,3 @@ function notify({ title='', message='', level='info', timeout=2600, icon } = {})
 loadAll();
 initBottomNav();
 updateAuthUI();
-
