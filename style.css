@@ -812,3 +812,58 @@ body{ padding-bottom: env(safe-area-inset-bottom); }
 
 /* Bottom-nav safe width */
 .bottom-nav{ width:min(820px,96vw); left:50%; transform:translateX(-50%); padding-bottom:max(0px, env(safe-area-inset-bottom)); }
+
+/* ===== Bottom Nav — Mobile fit (iPhone 15 ready) ===== */
+
+/* ให้กรอบพอดีหน้าจอ และคลิปของล้น ๆ */
+.bottom-nav{
+  box-sizing: border-box;
+  width: min(100vw - 16px, 820px);    /* ชิดจอแต่มีระยะหายใจ */
+  overflow: hidden;                   /* กันลูกล้นกรอบ */
+  padding-bottom: max(0px, env(safe-area-inset-bottom));
+}
+
+/* ปรับระยะ/ขนาดบนมือถือ */
+@media (max-width: 430px){            /* iPhone 15 และจอใกล้เคียง */
+  .bottom-nav{
+    height: 64px;
+    border-radius: 18px;
+    padding: 0 6px;
+  }
+  .bottom-nav::after{                 /* ไฮไลต์ตัวเลือกไม่ทับขอบ */
+    top: 6px; bottom: 6px;
+    border-radius: 12px;
+  }
+  .nav-btn{
+    gap: 2px;
+    font-size: 20px;                  /* ขนาดอีโมจิ */
+    line-height: 1;
+    padding-top: 2px; padding-bottom: 2px;
+  }
+  .nav-btn span{
+    font-size: 11px;                  /* ป้ายชื่อให้สั้นพอดี */
+    line-height: 1.05;
+    white-space: nowrap;              /* กันตัดคำแปลก ๆ */
+    max-width: 70px;                  /* กันยาวดันเพื่อน */
+    overflow: hidden; text-overflow: ellipsis;
+  }
+}
+
+/* จอเล็กมาก (SE/mini) */
+@media (max-width: 360px){
+  .bottom-nav{ height: 60px; }
+  .nav-btn{ font-size: 19px; }
+  .nav-btn span{ font-size: 10.5px; max-width: 64px; }
+}
+
+/* จอใหญ่ขึ้น: เพิ่มช่องว่างเล็กน้อย */
+@media (min-width: 431px) and (max-width: 820px){
+  .bottom-nav{
+    width: min(96vw, 820px);
+    height: 68px;
+  }
+}
+
+/* กันการล้นแนวนอนทั้งหน้าใน iOS */
+.container{ overflow-x:hidden; }
+
