@@ -306,6 +306,7 @@ body.modal-open{overflow:hidden}
 /* Alert bars */
 .alert-item.bar-red { border-left: 8px solid #e63946; }
 .alert-item.bar-orange { border-left: 8px solid #f4a261; }
+
 /* =========================
    Modern Colorful Skin (History)
    วางต่อท้าย style.css
@@ -737,255 +738,77 @@ body.modal-open{overflow:hidden}
   .noti{ max-width:unset }
 }
 
-/* ===== History: Minimal skin (override) ===== */
-#page-history .card{
-  background:#fff;
-  border:1px solid #e5e7eb;
-  box-shadow:none;
-}
+/* ======== OVERRIDES (Minimal + Mobile, esp. Dashboard & Top5) ========= */
 
-#page-history .tbl-wrap{
-  background:#fff;
-  border:1px solid #e5e7eb;
-  border-radius:12px;
-  box-shadow:none;
-  overflow:auto;
-}
+/* iOS safe-area + ป้องกัน zoom-font */
+html{ -webkit-text-size-adjust: 100%; }
+body{ padding-bottom: env(safe-area-inset-bottom); }
 
-/* หัวตาราง: เรียบ ๆ ไม่ไล่สี ไม่แสงเงา */
-#page-history .tbl thead th{
-  position:sticky; top:0; z-index:2;
-  background:#f8fafc;
-  color:#0f172a;
-  border:none;
-  text-transform:none;
-  font-weight:600;
-  letter-spacing:0;
-  box-shadow:none;
-}
-#page-history .tbl thead th:first-child{ border-radius:12px 0 0 12px; }
-#page-history .tbl thead th:last-child { border-radius:0 12px 12px 0; }
+/* Global card more minimal */
+.card{ border:1px solid #e5e7eb; box-shadow:none; border-radius:16px; }
+.card.soft{ border-radius:16px; }
 
-/* แถวข้อมูล: เส้นบาง ๆ + hover เบา ๆ */
-#page-history .tbl tbody td{
-  padding:12px 14px;
-  border-bottom:1px solid #f1f5f9;
-}
-#page-history .tbl tbody tr:hover{
-  background:#f9fafb;
-  transform:none;
-  box-shadow:none;
-}
-/* ตัดแถบสีด้านซ้ายเวลา hover ออก */
-#page-history .tbl tbody tr:hover td:first-child::before{ content:none; }
+/* Dashboard: compact KPI & alerts */
+@media (max-width: 820px){ .kpi-row{ grid-template-columns:1fr 1fr; gap:12px; } }
+.kpi-num{ font-size: clamp(18px, 7vw, 28px); padding-left:0; }
 
-/* ฟิลเตอร์/อินพุต: เรียบง่าย */
-#page-history #hQ,
-#page-history select{
-  padding:10px 12px;
-  background:#fff;
-  border:1px solid #e5e7eb;
-  box-shadow:none;
-}
+.alert-list{ gap:10px; }
+.alert-item{ overflow:hidden; align-items:flex-start; }
+.alert-title,.alert-meta{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-/* ชิปตัวกรอง: แบบแบน */
-#page-history .chipset{ gap:8px; }
-#page-history .chip{
-  background:#f8fafc;
-  border:1px solid #e5e7eb;
-  color:#334155;
-  box-shadow:none;
-  transform:none;
+/* ---- Top 5 (fit-to-screen, iPhone friendly) ---- */
+#page-dashboard .card.soft{ padding:12px; border-radius:16px; overflow:hidden; }
+#page-dashboard .top5-list{ margin:0; padding:0; gap:12px; }
+#page-dashboard .top5-item{
+  box-sizing:border-box; width:100%; max-width:100%;
+  border:1px solid var(--line); border-radius:14px; background:#fff;
+  overflow:hidden;
+  display:grid; grid-template-columns:36px 1fr auto; gap:10px; padding:10px 12px;
 }
-#page-history .chip.is-active{
-  background:#eef2ff;
-  border-color:#c7d2fe;
-  color:#1e40af;
-  box-shadow:none;
+#page-dashboard .top5-item > *{ min-width:0; }
+#page-dashboard .top5-name{
+  font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
-
-/* badge: โทนพาสเทล เรียบ ๆ */
-#page-history .badge{
-  padding:4px 8px;
-  border-radius:999px;
-  font-weight:600;
-  box-shadow:none;
+#page-dashboard .top5-meta{
+  font-size:12px; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
-#page-history .badge.in{
-  background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;
+#page-dashboard .top5-qty{ white-space:nowrap; text-align:right; font-weight:700; }
+#page-dashboard .top5-bar{
+  grid-column:2 / span 2; width:100%; max-width:100%;
+  height:6px; margin-top:6px; background:#eff3fb;
+  border-radius:999px; overflow:hidden;
 }
-#page-history .badge.out{
-  background:#fee2e2; color:#b91c1c; border:1px solid #fecaca;
-}
-
-/* ปุ่มย่อย */
-#page-history .btn-xs{
-  background:#f8fafc; border:1px solid #e5e7eb;
-}
-#page-history .btn-xs:hover{
-  background:#eef2ff; border-color:#c7d2fe;
-}
-#page-history button.secondary{
-  background:#f3f4f6; color:#0f172a; border:1px solid #e5e7eb;
-}
-
-/* ===== History — Neo-Minimal (card rows) ===== */
-#page-history .card{
-  background:#fff;
-  border:1px solid #e5e7eb;
-  box-shadow:none;
-}
-
-/* ทำให้แต่ละแถวเหมือนการ์ดมีช่องว่าง */
-#page-history .tbl{
-  border-collapse:separate;
-  border-spacing:0 10px;              /* เว้นระยะระหว่างแถว */
-}
-#page-history .tbl-wrap{
-  border:0; background:transparent; box-shadow:none;
-}
-
-/* หัวตารางเรียบ ๆ */
-#page-history .tbl thead th{
-  position:sticky; top:0; z-index:2;
-  background:#5590f6;
-  color:#e6eaf3;
-  border:none;
-  box-shadow:0 1px 0 #e5e7eb;
-  text-transform:none; font-weight:500; letter-spacing:0;
-  padding:12px 14px;
-}
-
-/* แถวข้อมูลเป็น “การ์ด” */
-#page-history .tbl tbody td{
-  background:#fff;
-  border:1px solid #e5e7eb;
-  border-left:0; border-right:0;      /* ตัดเส้นกลางให้ดูกลืน */
-  padding:14px 16px;
-}
-#page-history .tbl tbody td:first-child{
-  border-left:1px solid #e5e7eb;
-  border-radius:12px 0 0 12px;
-}
-#page-history .tbl tbody td:last-child{
-  border-right:1px solid #e5e7eb;
-  border-radius:0 12px 12px 0;
-}
-#page-history .tbl tbody tr{
-  transition: transform .12s ease, filter .12s ease, background .12s ease;
-}
-#page-history .tbl tbody tr:hover{
-  transform: translateY(-1px);
-  filter: drop-shadow(0 6px 18px rgba(2,6,23,.06));
-}
-#page-history .tbl tbody tr:hover td{
-  border-color:#dbe4f0;
-}
-
-/* โทนสี badge ให้เล็ก สุภาพ */
-#page-history .badge{ padding:4px 10px; border-radius:999px; font-weight:600; box-shadow:none; }
-#page-history .badge.in{ background:#ecfdf3; color:#047857; border:1px solid #bbf7d0; }
-#page-history .badge.out{ background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; }
-
-/* อินพุต/ฟิลเตอร์ให้เนียน */
-#page-history #hQ, #page-history select{
-  padding:10px 12px; background:#fff; border:1px solid #e5e7eb;
-  box-shadow:none;
-}
-
-/* ชิปตัวกรองแบบแบน */
-#page-history .chip{ background:#f8fafc; border:1px solid #e5e7eb; color:#334155; box-shadow:none; }
-#page-history .chip.is-active{ background:#eef2ff; border-color:#c7d2fe; color:#1e40af; }
-
-/* อ่านค่า “โมเดล/จำนวน” ชัดขึ้น */
-#page-history .tbl tbody td:nth-child(5){
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  letter-spacing:.2px;
-}
-#page-history .tbl tbody td:nth-child(6){
-  text-align:right; font-weight:700;
-}
-
-/* เวอร์ชันจอเล็ก */
-@media (max-width:720px){
-  #page-history .tbl{ border-spacing:0 8px; }
-  #page-history .tbl tbody td{ padding:12px; }
-}
-
-/* ==== History: compact badges & clipping inside row cards ==== */
-
-/* จัดแนวเนื้อหาในเซลล์ให้อยู่กึ่งกลางแนวตั้ง */
-#page-history .tbl tbody td{ vertical-align: middle; }
-
-/* เซลล์หัว–ท้ายของแถวเป็นตัวทำขอบโค้ง → ให้ clip เนื้อหาภายในไม่ให้ล้น */
-#page-history .tbl tbody td:first-child,
-#page-history .tbl tbody td:last-child{
-  overflow: hidden;
-}
-
-/* ป้าย "รับเข้า / เบิกออก" แบบมินิมอล ไม่กินพื้นที่ และไม่ตกกรอบ */
-#page-history .badge{
-  display:inline-flex; align-items:center; justify-content:center;
-  height:26px;               /* ความสูงคงที่ */
-  padding:0 10px;            /* แคบลง */
-  font-size:12px; font-weight:600; line-height:1;
-  border-radius:999px; white-space:nowrap;
-  background:#f8fafc; border:1px solid #e5e7eb; box-shadow:none;
-}
-#page-history .badge.in{
-  background:#ecfdf5; border-color:#a7f3d0; color:#047857;
-}
-#page-history .badge.out{
-  background:#fee2e2; border-color:#fecaca; color:#b91c1c;
-}
-
-/* ให้คอลัมน์ "ประเภท" หดตัวตามป้าย (ไม่ดันทั้งแถว) */
-#page-history .tbl tbody td:nth-child(4){
-  width:1%; white-space:nowrap;
-}
-
-/* ขนาดเล็กลงอีกนิดในจอเล็ก */
-@media (max-width:720px){
-  #page-history .badge{ height:24px; padding:0 8px; font-size:11px; }
-}
-
-/* ===== Top 5 (Minimal + no overflow) ===== */
-
-/* การ์ดแต่ละแถว: มุมโค้ง + กันของล้นขอบ */
-.top5-item{
-  border:1px solid var(--line);
-  border-radius:12px;
-  background:#fff;
-  overflow: hidden;                 /* สำคัญ: กัน progress ล้นกรอบ */
-  padding:10px 12px;
-  gap:10px;
-}
-
-/* ชื่อ/เมตาให้ตัดคำไม่ดันกรอบ */
-.top5-name{ font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.top5-meta{ font-size:12px; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-
-/* แถบเปอร์เซ็นต์ไม่ให้ล้นมุมการ์ด */
-.top5-bar{
-  grid-column: 2 / span 2;
-  height:6px;
-  background:#eff3fb;
-  border-radius:999px;
-  overflow:hidden;                  /* สำคัญ: clip แถบด้านใน */
-  margin-top:6px;
-}
-.top5-fill{
-  height:100%;
-  width:0%;
-  max-width:100%;                   /* กันคำนวณเปอร์เซ็นต์เกิน 100 */
-  display:block;
-  transform: translateZ(0);         /* ช่วย rendering บน iOS */
+#page-dashboard .top5-fill{
+  height:100%; width:0%; max-width:100%;
+  display:block; transform:translateZ(0);
   background:linear-gradient(90deg,#93c5fd,#2563eb);
 }
-
-/* ระยะห่างรอบรายการบนจอเล็กให้ไม่ชนขอบการ์ดแม่ */
-@media (max-width: 480px){
-  .top5-list{ gap:12px; }
-  .top5-item{ border-radius:14px; padding:10px 12px; }
-  .top5-bar{ height:5px; }
+@media (max-width:430px){
+  #page-dashboard .top5-item{ grid-template-columns:28px 1fr auto; border-radius:16px; }
+  #page-dashboard .top5-rank{ width:26px; height:26px; border-radius:9px; font-size:13px; }
+  #page-dashboard .top5-name{ font-size:14px; }
+  #page-dashboard .top5-qty{ font-size:14px; }
+  #page-dashboard .top5-bar{ height:5px; }
 }
+
+/* ป้องกันแนวนอนล้นหน้าจอ */
+.container{ overflow-x:hidden; }
+
+/* History — badges compact inside row-cards (ไม่ล้นมุม) */
+#page-history .tbl tbody td{ vertical-align:middle; }
+#page-history .tbl tbody td:first-child,
+#page-history .tbl tbody td:last-child{ overflow:hidden; }
+#page-history .badge{
+  display:inline-flex; align-items:center; justify-content:center;
+  height:26px; padding:0 10px; font-size:12px; line-height:1;
+  border-radius:999px; white-space:nowrap; box-shadow:none;
+}
+#page-history .badge.in{ background:#ecfdf5; border:1px solid #a7f3d0; color:#047857; }
+#page-history .badge.out{ background:#fee2e2; border:1px solid #fecaca; color:#b91c1c; }
+#page-history .tbl tbody td:nth-child(4){ width:1%; white-space:nowrap; }
+
+/* Gallery text clamp */
+.gbox .name, .gbox .meta{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* Bottom-nav safe width */
+.bottom-nav{ width:min(820px,96vw); left:50%; transform:translateX(-50%); padding-bottom:max(0px, env(safe-area-inset-bottom)); }
