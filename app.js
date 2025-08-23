@@ -1526,8 +1526,37 @@ function notify({ title='', message='', level='info', timeout=2600, icon } = {})
   });
 })();
 
+// ==== Compact bottom-nav labels for tiny screens ====
+(function normalizeNavLabels(){
+  // เปลี่ยน "ค้นหา/เบิก" -> "ค้นหา" และย่อบางตัว
+  const map = new Map([
+    ['ค้นหา/เบิก','ค้นหา'],
+    ['แดชบอร์ด','แดชบอร์ด'],   // ถ้าจอเล็กมากค่อยย่ออีกที
+  ]);
+
+  document.querySelectorAll('.bottom-nav .nav-btn span').forEach(el=>{
+    const t = (el.textContent||'').trim();
+    if(map.has(t)) el.textContent = map.get(t);
+  });
+
+  // จอเล็กมาก (≤ 360px): ย่อเพิ่มเติมให้พอดี 2 บรรทัด
+  if (window.matchMedia('(max-width:360px)').matches){
+    const tinyMap = new Map([
+      ['แดชบอร์ด','แดช'],  // ย่อเหลือคำเดียว
+      ['ประวัติ','ประวัติ'], // คงเดิม
+      ['ส่งออก','ส่งออก'],   // คงเดิม
+      ['ตั้งค่า','ตั้งค่า']    // คงเดิม
+    ]);
+    document.querySelectorAll('.bottom-nav .nav-btn span').forEach(el=>{
+      const t = (el.textContent||'').trim();
+      if(tinyMap.has(t)) el.textContent = tinyMap.get(t);
+    });
+  }
+})();
+
 /* ===== Init ===== */
 loadAll();
 initBottomNav();
 updateAuthUI();
+
 
