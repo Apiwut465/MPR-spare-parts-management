@@ -911,4 +911,41 @@ body{ padding-bottom: env(safe-area-inset-bottom); }
 
 /* กันหน้าเว็บลื่นออกจอแนวนอนใน iOS */
 html, body, .container{ overflow-x:hidden; }
+/* ===== Fix: Dashboard alerts text should never overflow ===== */
+.alert-list{ gap: 10px; }
+.alert-item{
+  align-items: flex-start;          /* ให้เนื้อหาขยายลงได้ */
+  flex-wrap: wrap;                  /* อนุญาตให้ขึ้นบรรทัดใหม่ */
+  overflow: hidden;                 /* กันล้นจากมุมโค้ง */
+}
+
+.alert-title{
+  /* ให้ข้อความตัดบรรทัดได้ทุกจุด + รองรับคำยาว/รหัสรุ่น */
+  white-space: normal;
+  overflow-wrap: anywhere;          /* ตัดได้แม้ไม่มีช่องว่าง */
+  word-break: break-word;
+  hyphens: auto;
+
+  /* ขนาดและช่องไฟที่อ่านง่ายบนมือถือ */
+  font-size: clamp(15px, 4.2vw, 18px);
+  line-height: 1.28;
+  margin-bottom: 2px;
+}
+
+.alert-meta{
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.25;
+  color: #64748b;
+}
+
+/* จอเล็กมาก → ลดขนาดลงเล็กน้อยและเพิ่มระยะหายใจ */
+@media (max-width: 380px){
+  .alert-item{ padding: 10px 12px; }
+  .alert-title{ font-size: 15px; }
+  .alert-meta{ font-size: 12px; }
+}
+
+
 
