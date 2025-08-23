@@ -117,7 +117,10 @@ function renderDashboard(){
 
       const body = document.createElement('div'); body.style.flex='1';
       const title = document.createElement('div'); title.className='alert-title '+(st==='หมด'?'t-red':'t-orange'); title.textContent = `${p.PartID} — ${p.Name}`;
-      const meta  = document.createElement('div'); meta.className='alert-meta'; meta.textContent = `คงเหลือ ${p.Qty??0} • Min ${p.Min??0} • ${p.Category||'-'} • ${p.Location||'-'}`;
+ const meta  = document.createElement('div'); 
+      meta.className='alert-meta'; 
+      // ⬇️ เปลี่ยนจากหมวดหมู่ (Category) เป็นยี่ห้อ (Brand)
+     meta.textContent = `คงเหลือ ${p.Qty??0} • Min ${p.Min??0} • ${p.Brand||'-'} • ${p.Location||'-'} • ${p.PartID||'-'}`;
       body.appendChild(title); body.appendChild(meta); it.appendChild(body); wrap.appendChild(it);
     });
   }
@@ -1500,3 +1503,4 @@ function notify({ title='', message='', level='info', timeout=2600, icon } = {})
 loadAll();
 initBottomNav();
 updateAuthUI();
+
