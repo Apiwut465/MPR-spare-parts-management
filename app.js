@@ -92,8 +92,57 @@ function saveDemo(){
 function renderDatalists(){
   const dl = $('#dlParts'); if(dl){ dl.innerHTML=''; state.parts.forEach(p=>{ const o=document.createElement('option'); o.value=p.PartID; o.label=p.Name; dl.appendChild(o); });}
   const dc = $('#dlCats'); if(dc){ dc.innerHTML=''; state.categories.forEach(c=>{ const o=document.createElement('option'); o.value=c; dc.appendChild(o); });}
-  const dm = $('#dlMachines'); if(dm){ dm.innerHTML=''; state.machines.forEach(m=>{ const o=document.createElement('option'); o.value=m; dl.appendChild?0:0; dm.appendChild(o); });}
-  const dd = $('#dlDepts'); if(dd){ dd.innerHTML=''; state.depts.forEach(d=>{ const o=document.createElement('option'); o.value=d; dd.appendChild(o); });}
+  const dm = $('#dlMachines'); if(dm){ dm.innerHTML=''; state.machines.forEach(m=>{ const o=document.createElement('option'); o.value=m; dm.appendChild(o); });}
+  const dd = $('#dlDepts'); ifdd:{ const dd2 = $('#dlDepts'); if(dd2){ dd2.innerHTML=''; state.depts.forEach(d=>{ const o=document.createElement('option'); o.value=d; dd2.appendChild(o); }); } }
+}
+
+/* === ใส่คอนโทรลตัวกรองในแดชบอร์ด (สถานะ/หมวด/จำนวนที่แสดง) === */
+function ensureDashControls(){
+  const card = document.querySelector('#page-dashboard .card.soft');
+  if(!card) return;
+  let legend = card.querySelector('.legend');
+  if(!legend){ legend = document.createElement('div'); legend.className = 'legend'; card.prepend(legend); }
+
+  // สถานะ
+  if(!document.getElementById('dashSt')){
+    const st = document.createElement('select');
+    st.id = 'dashSt';
+    st.title = 'สถานะ';
+    st.innerHTML = `
+      <option value="">สถานะ: ทั้งหมด</option>
+      <option value="หมด">หมด</option>
+      <option value="ใกล้หมด">ใกล้หมด</option>
+      <option value="ต่ำกว่า Min">ต่ำกว่า Min</option>
+    `;
+    st.addEventListener('change', renderDashboard);
+    legend.appendChild(st);
+  }
+
+  // หมวดหมู่ (อัปเดตรายการทุกครั้ง)
+  let cat = document.getElementById('dashCat');
+  if(!cat){
+    cat = document.createElement('select');
+    cat.id = 'dashCat';
+    cat.title = 'หมวดหมู่';
+    cat.addEventListener('change', renderDashboard);
+    legend.appendChild(cat);
+  }
+  cat.innerHTML = `<option value="">หมวดหมู่: ทั้งหมด</option>` +
+                  (state.categories||[]).map(c=>`<option value="${c}">${c}</option>`).join('');
+
+  // จำนวนที่แสดง
+  if(!document.getElementById('dashLimit')){
+    const lim = document.createElement('select');
+    lim.id = 'dashLimit';
+    lim.title = 'จำนวนรายการ';
+    lim.innerHTML = `
+      <option value="10">แสดง 10 รายการ</option>
+      <option value="20">แสดง 20 รายการ</option>
+      <option value="all">แสดงทั้งหมด</option>
+    `;
+    lim.addEventListener('change', renderDashboard);
+    legend.appendChild(lim);
+  }
 }
 
 /* --- Dashboard --- */
@@ -102,35 +151,57 @@ function renderDashboard(){
   $('#k_near').textContent   = state.parts.filter(p=>['ใกล้หมด','ต่ำกว่า Min'].includes(statusOf(p))).length.toLocaleString();
   $('#k_out').textContent    = state.parts.filter(p=>statusOf(p)==='หมด').length.toLocaleString();
 
+  // สร้าง/อัปเดตตัวกรอง
+  ensureDashControls();
+
   const wrap = $('#dashAlerts'); wrap.innerHTML='';
-  const alerts = state.parts
+  const stF  = $('#dashSt')?.value || '';
+  const catF = $('#dashCat')?.value || '';
+  const limV = $('#dashLimit')?.value || '10';
+  const limit = (limV === 'all') ? Infinity : Number(limV) || 10;
+
+  let alerts = state.parts
     .map(p=>({p,st:statusOf(p)}))
-    .filter(x=> x.st==='หมด' || x.st==='ใกล้หมด' || x.st==='ต่ำกว่า Min')
-    .sort((a,b)=> Number(a.p.Qty||0) - Number(b.p.Qty||0));
-  if(alerts.length===0){ wrap.innerHTML='<div class="meta">ยังไม่มีรายการที่ต้องรีสต็อก</div>'; }
-  else{
-    alerts.forEach(({p,st})=>{
+    .filter(x=> x.st==='หมด' || x.st==='ใกล้หมด' || x.st==='ต่ำกว่า Min');
+
+  if(stF)  alerts = alerts.filter(x=> x.st === stF);
+  if(catF) alerts = alerts.filter(x=> (x.p.Category||'').toLowerCase().includes(catF.toLowerCase()));
+
+  alerts.sort((a,b)=> Number(a.p.Qty||0) - Number(b.p.Qty||0));
+
+  if(alerts.length===0){
+    wrap.innerHTML='<div class="meta">ยังไม่มีรายการที่ต้องรีสต็อก</div>';
+  }else{
+    alerts.slice(0, limit).forEach(({p,st})=>{
       const it = document.createElement('div'); 
       it.className='alert-item';
       if(st==='หมด') it.classList.add('bar-red');
-      else if(st==='ใกล้หมด' || st==='ต่ำกว่า Min') it.classList.add('bar-orange');
+      else it.classList.add('bar-orange');
 
       const body = document.createElement('div'); body.style.flex='1';
       const title = document.createElement('div'); 
       title.className='alert-title '+(st==='หมด'?'t-red':'t-orange'); 
-      // ⬇️ เปลี่ยนให้โชว์ "ชื่ออะไหล่" แทน "รหัส — ชื่อ"
-      title.textContent = `${p.Name || p.PartID || ''} / Model : ${p.Model||''} `;
+      // ✅ ไทยล้วน
+      title.textContent = `${p.Name || p.PartID || ''} • รุ่น ${p.Model||''}`;
 
       const meta  = document.createElement('div'); 
       meta.className='alert-meta'; 
-      // ⬇️ เปลี่ยนจากหมวดหมู่ (Category) เป็นยี่ห้อ (Brand)
-     meta.textContent = `คงเหลือ ${p.Qty??0} • Min ${p.Min??0} • ${p.Brand||'-'} • ${p.Location||'-'} • ${p.PartID||'-'}`;
+      // ✅ "ขั้นต่ำ" แทน Min
+      meta.textContent = `คงเหลือ ${p.Qty??0} • ขั้นต่ำ ${p.Min??0} • ${p.Brand||'-'} • ${p.Location||'-'} • ${p.PartID||'-'}`;
 
       body.appendChild(title); 
       body.appendChild(meta); 
       it.appendChild(body); 
       wrap.appendChild(it);
     });
+
+    if (alerts.length > limit && isFinite(limit)){
+      const more = document.createElement('div');
+      more.className='meta';
+      more.style.padding='6px 2px';
+      more.textContent = `มีทั้งหมด ${alerts.length.toLocaleString()} รายการ — ปรับ "จำนวนที่แสดง" เป็น "แสดงทั้งหมด" เพื่อดูทั้งหมด`;
+      wrap.appendChild(more);
+    }
   }
 
   const days = Number(document.getElementById('topDays')?.value || 30);
@@ -246,7 +317,8 @@ function renderGallery(){
     const sub   = document.createElement('div'); sub.className='meta'; sub.textContent = `${p.Brand||'-'} ${p.Model||''}`;
     const meta  = document.createElement('div'); meta.className='gmeta';
     const st = statusOf(p);
-    meta.innerHTML = `<span>${p.Category||'-'}</span><span>คงเหลือ ${p.Qty??0}</span><span>Min ${p.Min??0}</span><span>${p.Location||'-'}</span><span class="badge ${st==='หมด'?'red':st==='ใกล้หมด'?'orange':'green'}">${st||'-'}</span>`;
+    // ✅ เปลี่ยน Min -> ขั้นต่ำ
+    meta.innerHTML = `<span>${p.Category||'-'}</span><span>คงเหลือ ${p.Qty??0}</span><span>ขั้นต่ำ ${p.Min??0}</span><span>${p.Location||'-'}</span><span class="badge ${st==='หมด'?'red':st==='ใกล้หมด'?'orange':'green'}">${st||'-'}</span>`;
     box.appendChild(title); box.appendChild(sub); box.appendChild(meta); card.appendChild(box);
 
     const act = document.createElement('div'); act.className='gactions';
@@ -300,7 +372,8 @@ function openIssueModal(part, presetQty=0){
   currentPart = part;
   $('#m_img').src = part.ImageURL || '';
   $('#m_title').textContent = `${part.PartID} — ${part.Name}`;
-  $('#m_meta').textContent  = `${part.Category||'-'} • คงเหลือ ${part.Qty??0} • Min ${part.Min??0} • ${part.Location||'-'}`;
+  // ✅ เปลี่ยน Min -> ขั้นต่ำ
+  $('#m_meta').textContent  = `${part.Category||'-'} • คงเหลือ ${part.Qty??0} • ขั้นต่ำ ${part.Min??0} • ${part.Location||'-'}`;
   $('#m_qty').value = presetQty>0 ? presetQty : '';
   $('#m_qty').min = '1';
   $('#m_qty').max = String(remain);
@@ -1554,9 +1627,848 @@ function notify({ title='', message='', level='info', timeout=2600, icon } = {})
   }
 })();
 
+/* -------------------------------------------------------
+   ✨ Edit Image: Preview + Upload (demo & API)
+   - รองรับพรีวิวรูปเมื่อเลือกไฟล์
+   - โหมด demo: เก็บเป็น dataURL ใน localStorage
+   - โหมด API: อัปโหลด Supabase Storage แล้วเซ็ต ImageURL
+   ------------------------------------------------------- */
+
+/* ช่วยอ่านไฟล์ (อัดขนาด + คุณภาพ ให้เบา) */
+async function readFileAsDataURLCompressed(file, maxSide=1400, quality=0.82){
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+  const w = Math.round(bitmap.width * scale);
+  const h = Math.round(bitmap.height * scale);
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d', {alpha:false});
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', quality));
+  return await new Promise((res,rej)=>{
+    const fr = new FileReader(); fr.onload = () => res(fr.result);
+    fr.onerror = rej; fr.readAsDataURL(blob);
+  });
+}
+
+/* แปลง dataURL -> อัปโหลดขึ้น Supabase Storage แล้วคืน public URL */
+async function __uploadDataUrlToStorage(dataUrl, path){
+  const supa = window.supa;
+  if(!supa) throw new Error('ไม่พบ Supabase client (window.supa)');
+  const [meta, b64] = String(dataUrl).split(',');
+  const mime = /data:(.*?);base64/.exec(meta)?.[1] || 'image/jpeg';
+  const bin  = atob(b64); const len = bin.length; const buf = new Uint8Array(len);
+  for(let i=0;i<len;i++) buf[i] = bin.charCodeAt(i);
+  const blob = new Blob([buf], {type:mime});
+  const { error:upErr } = await supa.storage.from('parts').upload(path, blob, { upsert:true, contentType: blob.type });
+  if(upErr) throw upErr;
+  const { data } = supa.storage.from('parts').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+/* ---- ผูกพรีวิวรูป & ปุ่มล้าง ---- */
+(function wireEditImagePreview(){
+  const fi = document.getElementById('e_imgFile');
+  const pv = document.getElementById('e_imgPreview');
+  const clearBtn = document.getElementById('e_clearImgEdit');
+
+  // รีเซ็ตพรีวิวทุกครั้งที่เปิด modal แก้ไข
+  const __oldOpenEdit = window.openEditModal;
+  window.openEditModal = function(part, presetQty=0){
+    if(typeof __oldOpenEdit === 'function') __oldOpenEdit(part, presetQty);
+    if(pv){
+      if(part?.ImageURL){ pv.src = part.ImageURL; }
+      else { pv.removeAttribute('src'); }
+    }
+    if(fi){ fi.value=''; delete fi.dataset._tempDataUrl; }
+  };
+
+  fi?.addEventListener('change', async (e)=>{
+    const f = e.target.files?.[0];
+    if(!f){ pv?.removeAttribute('src'); delete e.target.dataset._tempDataUrl; return; }
+    try{
+      const dataUrl = await readFileAsDataURLCompressed(f, 1400, .82);
+      e.target.dataset._tempDataUrl = dataUrl;   // เก็บไว้ใช้ตอนกดบันทึก
+      if(pv) pv.src = dataUrl;
+    }catch{ pv?.removeAttribute('src'); delete e.target.dataset._tempDataUrl; }
+  });
+
+  clearBtn?.addEventListener('click', ()=>{
+    if(fi){ fi.value=''; delete fi.dataset._tempDataUrl; }
+    pv?.removeAttribute('src');
+  });
+})();
+
+/* ---- บันทึก (โหมด DEMO) : แทนที่ handler เดิมให้รองรับรูปไฟล์ ---- */
+(function hookEditSaveDemo(){
+  if(state?.mode !== 'demo') return;
+  const oldBtn = document.getElementById('e_save');
+  if(!oldBtn) return;
+  const btn = oldBtn.cloneNode(true); oldBtn.replaceWith(btn);
+
+  btn.addEventListener('click', async (e)=>{
+    e.preventDefault(); e.stopImmediatePropagation();
+
+    // หาอะไหล่ที่กำลังแก้
+    if(!_editingId){ document.getElementById('editModal')?.classList.remove('show'); return; }
+    const idx = state.parts.findIndex(x=>x.PartID===_editingId);
+    if(idx<0) return;
+
+    const newCode = $('#e_code').value.trim();
+    if(newCode!==_editingId && state.parts.some(x=>x.PartID===newCode)){
+      return notify({title:'ซ้ำ!', message:'รหัสนี้มีอยู่แล้ว', level:'danger'});
+    }
+
+    // อ่านฟอร์ม
+    const next = {
+      PartID:  newCode,
+      Name:    $('#e_name').value.trim(),
+      Category:$('#e_cat').value.trim(),
+      Brand:   $('#e_brand').value.trim(),
+      Model:   $('#e_model').value.trim(),
+      Qty:     Number($('#e_qty').value||0),
+      Min:     Number($('#e_min').value||0),
+      Location:$('#e_loc').value.trim(),
+      ImageURL:$('#e_img').value.trim()
+    };
+
+    // ถ้ามีไฟล์ใหม่ -> ใช้ dataURL แทน URL เดิม
+    const fi = document.getElementById('e_imgFile');
+    const temp = fi?.dataset?._tempDataUrl || '';
+    if(temp) next.ImageURL = temp;
+
+    // อัปเดต state
+    const before = {...state.parts[idx]};
+    state.parts[idx] = {...before, ...next};
+    if(newCode!==_editingId){ state.txns.forEach(t=>{ if(t.PartID===_editingId) t.PartID=newCode; }); }
+
+    saveDemo(); renderStock(); renderDashboard(); renderDatalists();
+    notify({title:'บันทึกแล้ว', message:newCode});
+    document.body.classList.remove('modal-open');
+    $('#editModal')?.classList.remove('show');
+    _editingId = null;
+  }, {capture:true});
+})();
+
+/* ---- บันทึก (โหมด API) : อัปโหลดรูปขึ้น Storage แล้วอัปเดต parts ---- */
+(function hookEditSaveApi(){
+  if(state?.mode !== 'api') return;
+  const supa = window.supa;
+  if(!supa) return;
+
+  const oldBtn = document.getElementById('e_save');
+  if(!oldBtn) return;
+  const btn = oldBtn.cloneNode(true); oldBtn.replaceWith(btn);
+
+  async function updateTxnsPartId(oldId, newId){
+    if (oldId === newId) return;
+    const { error } = await supa.from('txns').update({ PartID:newId }).eq('PartID', oldId);
+    if(error) throw error;
+  }
+
+  btn.addEventListener('click', async (e)=>{
+    e.preventDefault(); e.stopImmediatePropagation();
+    if(!_editingId) return;
+
+    const idx = state.parts.findIndex(x=>x.PartID===_editingId);
+    if(idx<0) return;
+
+    const next = {
+      PartID:  $('#e_code').value.trim(),
+      Name:    $('#e_name').value.trim(),
+      Category:$('#e_cat').value.trim(),
+      Brand:   $('#e_brand').value.trim(),
+      Model:   $('#e_model').value.trim(),
+      Qty:     Number($('#e_qty').value||0),
+      Min:     Number($('#e_min').value||0),
+      Location:$('#e_loc').value.trim(),
+      ImageURL:$('#e_img').value.trim()
+    };
+
+    if(next.PartID!==_editingId && state.parts.some(p=>p.PartID===next.PartID)){
+      return notify({title:'ซ้ำ!', message:'รหัสดังกล่าวมีอยู่แล้ว', level:'danger'});
+    }
+
+    // ถ้ามีรูปไฟล์ใหม่ -> อัปโหลด Storage แล้วได้ URL
+    const fi = document.getElementById('e_imgFile');
+    const temp = fi?.dataset?._tempDataUrl || '';
+    let uploadedUrl = '';
+    try{
+      if(temp){
+        const path = `parts/${next.PartID}_${Date.now()}.jpg`;
+        uploadedUrl = await __uploadDataUrlToStorage(temp, path);
+      }
+    }catch(err){
+      return notify({title:'อัปโหลดรูปไม่สำเร็จ', message: err?.message || 'ลองใหม่อีกครั้ง', level:'danger'});
+    }
+    if(uploadedUrl) next.ImageURL = uploadedUrl;
+
+    // Optimistic UI + rollback
+    const before = {...state.parts[idx]};
+    state.parts[idx] = {...before, ...next};
+    renderStock(); renderDashboard(); renderDatalists();
+
+    try{
+      const { error } = await supa.from('parts')
+        .update(next).eq('PartID', _editingId);
+      if(error) throw error;
+
+      if(next.PartID !== _editingId){
+        await updateTxnsPartId(_editingId, next.PartID);
+      }
+
+      notify({title:'บันทึกแล้ว', message: next.PartID});
+      document.body.classList.remove('modal-open');
+      $('#editModal')?.classList.remove('show');
+      _editingId = null;
+    }catch(err){
+      state.parts[idx] = before; // rollback
+      renderStock(); renderDashboard(); renderDatalists();
+      notify({title:'บันทึกล้มเหลว', message: err?.message || 'เกิดข้อผิดพลาด', level:'danger'});
+    }
+  }, {capture:true});
+})();
+
+/* =========================================================
+   QR Codes — resilient + Label Page (open on download)
+   ========================================================= */
+
+/* ---------- Multi-CDN loader ---------- */
+const QR_CDNs = [
+  'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js',
+  'https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js'
+];
+function loadScriptWithTimeout(src, timeout = 7000){
+  return new Promise((resolve, reject)=>{
+    const s = document.createElement('script');
+    let done = false;
+    const t = setTimeout(()=>{ if(!done){ done=true; s.remove(); reject(new Error('timeout')); }}, timeout);
+    s.src = src; s.async = true;
+    s.onload = ()=>{ if(!done){ done=true; clearTimeout(t); resolve(); } };
+    s.onerror = ()=>{ if(!done){ done=true; clearTimeout(t); reject(new Error('load error')); } };
+    document.head.appendChild(s);
+  });
+}
+async function ensureQrLib(){
+  if (window.QRCode && typeof window.QRCode.toDataURL === 'function') return true;
+  for(const url of QR_CDNs){
+    try{ await loadScriptWithTimeout(url); if(window.QRCode?.toDataURL) return true; }catch(_){}
+  }
+  return false;
+}
+
+/* ---------- Payload: 1 PartID ต่อ 1 QR (ผูก Model) ---------- */
+function buildQrPayload(partId){
+  const p = (state.parts||[]).find(x=>x.PartID===partId);
+  const model = p?.Model || '';
+  return `MPR:${partId}|${model}`;
+}
+
+/* ---------- รูป QR: dataURL (ถ้ามี lib) หรือ URL จากบริการออนไลน์ ---------- */
+async function getQrImageSrc(payload, size = 280){
+  try{
+    const ok = await ensureQrLib();
+    if(ok){
+      const dataUrl = await QRCode.toDataURL(payload, {
+        errorCorrectionLevel:'M', margin:1, scale: Math.max(2, Math.floor(size/40))
+      });
+      if(dataUrl) return dataUrl;
+    }
+  }catch(_){}
+  const px = Math.max(80, Math.min(800, size));
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${px}x${px}&data=${encodeURIComponent(payload)}`;
+}
+
+/* =========================================================
+   STOCK TABLE: ปุ่ม QR + โมดัลพรีวิว
+   ========================================================= */
+(function patchStockTableWithQR(){
+  const __orig = window.renderStock;
+  window.renderStock = function(){
+    __orig && __orig();
+
+    // ใส่ปุ่ม QR ให้ทุกแถว (ครั้งเดียว)
+    $$('#stockTbl tbody .act').forEach(act=>{
+      const editBtn = act.querySelector('[data-edit]');
+      if(!editBtn) return;
+      const pid = editBtn.dataset.edit;
+      if(!act.querySelector(`[data-qr="${pid}"]`)){
+        const qrBtn = document.createElement('button');
+        qrBtn.className = 'btn-xs';
+        qrBtn.textContent = 'QR';
+        qrBtn.setAttribute('data-qr', pid);
+        act.insertBefore(qrBtn, act.firstChild);
+      }
+    });
+
+    // คลิก → เปิดพรีวิว
+    $$('#stockTbl tbody [data-qr]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const pid = btn.getAttribute('data-qr');
+        const p = state.parts.find(x=>x.PartID===pid);
+        if(!p) return;
+        const payload = buildQrPayload(pid);
+        const src = await getQrImageSrc(payload, 280);
+        openQrPreviewModal({ part: p, payload, src });
+      };
+    });
+  };
+
+  function getQrModal(){
+    let modal = document.getElementById('qrModal');
+    if(modal) return modal;
+    modal = document.createElement('div');
+    modal.id = 'qrModal';
+    modal.className = 'modal';
+    modal.setAttribute('aria-hidden', 'true');
+    modal.innerHTML = `
+      <div class="modal__backdrop" data-close></div>
+      <div class="modal__panel" role="dialog" aria-modal="true">
+        <div class="modal__head">
+          <button class="modal__close" type="button" data-close aria-label="ปิด">×</button>
+          <div class="modal__title">QR อะไหล่</div>
+        </div>
+        <div class="modal__body">
+          <div class="grid">
+            <div style="display:flex; gap:12px; align-items:center">
+              <img id="qrPrevImg" alt="QR" style="width:220px;height:220px;border-radius:12px;border:1px solid #e5e7eb;background:#fff"/>
+              <div>
+                <div id="qrPrevTitle" class="name"></div>
+                <div id="qrPrevMeta" class="meta"></div>
+                <div class="meta" id="qrPrevPayload" style="word-break:break-all"></div>
+                <div class="meta" id="qrPrevNote" style="color:#b45309"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal__foot">
+          <button class="secondary" data-close>ปิด</button>
+          <button id="btnDownloadQr">ดาวน์โหลด PNG</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelectorAll('[data-close]').forEach(el=> el.addEventListener('click', close));
+    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && modal.classList.contains('show')) close(); });
+    function close(){
+      modal.classList.remove('show');
+      modal.setAttribute('aria-hidden','true');
+      document.body.classList.remove('modal-open');
+    }
+    return modal;
+  }
+
+  async function openQrPreviewModal({ part, payload, src }){
+    const modal = getQrModal();
+    const isExternal = typeof src === 'string' && src.startsWith('http');
+    $('#qrPrevImg', modal).src = src;
+    $('#qrPrevTitle', modal).textContent = `${part.PartID} — ${part.Name||''}`;
+    $('#qrPrevMeta', modal).textContent  = `${part.Brand||'-'} ${part.Model||''} • ${part.Category||'-'} • ที่เก็บ ${part.Location||'-'}`;
+    $('#qrPrevPayload', modal).textContent = payload;
+    $('#qrPrevNote', modal).textContent = isExternal ? 'โหมดสำรอง: ใช้บริการสร้าง QR ออนไลน์' : '';
+
+    // >>> เปลี่ยนพฤติกรรม: เปิดหน้า Label สวย ๆ แทนดาวน์โหลดทันที <<<
+    $('#btnDownloadQr', modal).onclick = ()=>{
+      openQrLabelPage({ part, payload, src, isExternal });
+    };
+
+    document.body.classList.add('modal-open');
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden','false');
+  }
+})();
+
+/* ---------- หน้า Label (เปิดแท็บใหม่) ---------- */
+function openQrLabelPage({ part, payload, src, isExternal }){
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>QR — ${part.PartID}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --pri:#2563eb;
+  }
+  html,body{margin:0;background:#f7fafc;color:var(--ink);font-family:system-ui,-apple-system,'Noto Sans Thai',Segoe UI,Roboto,Arial}
+  .toolbar{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);padding:10px;display:flex;gap:8px;justify-content:flex-end}
+  .btn{cursor:pointer;border:1px solid var(--line);background:#f8fafc;border-radius:10px;padding:8px 12px;font-weight:700}
+  .btn.primary{background:var(--pri);border-color:transparent;color:#fff}
+  .wrap{max-width:920px;margin:18px auto;padding:0 16px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;gap:16px;align-items:flex-start}
+  .qr{width:min(360px,42vw);height:auto;aspect-ratio:1/1;border:1px solid var(--line);border-radius:12px;background:#fff}
+  .name{font-weight:800;font-size:20px;margin-top:4px}
+  .meta{color:var(--muted);font-size:14px;margin-top:4px}
+  .note{color:#b45309;font-size:13px;margin-top:8px}
+  @media print{
+    .toolbar{display:none}
+    body{background:#fff}
+    .wrap{margin:0;padding:0}
+    .card{border:none;box-shadow:none}
+  }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <button class="btn" onclick="window.print()">พิมพ์/บันทึก PDF</button>
+    <a class="btn primary" ${isExternal ? '' : `download="QR_${part.PartID}.png"`} href="${src}" target="_blank" rel="noopener">ดาวน์โหลด PNG</a>
+  </div>
+  <div class="wrap">
+    <div class="card">
+      <img class="qr" src="${src}" alt="QR ${part.PartID}">
+      <div>
+        <div class="name">${part.PartID} — ${part.Name||''}</div>
+        <div class="meta">${part.Brand||'-'} • ${part.Category||'-'} • ที่เก็บ ${part.Location||'-'}</div>
+        <div class="meta">${payload}</div>
+        ${isExternal ? '<div class="note">โหมดสำรอง: ใช้บริการสร้าง QR ออนไลน์</div>' : ''}
+      </div>
+    </div>
+  </div>
+</body>
+</html>`.trim();
+
+  const w = window.open('', '_blank');
+  if(!w){ notify?.({title:'ป๊อปอัปถูกบล็อก', message:'โปรดอนุญาตให้เว็บไซต์เปิดแท็บใหม่', level:'warn'}); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
+
+/* =========================================================
+   EXPORT: CSV (+QR payload) & แผ่นพิมพ์ QR (A4)
+   ========================================================= */
+(function ensureCsvIncludesQr(){
+  const oldBtn = document.getElementById('btnExportCsv');
+  if(!oldBtn) return;
+  const btn = oldBtn.cloneNode(true);
+  oldBtn.replaceWith(btn);
+
+  btn.addEventListener('click', async (e)=>{
+    e.preventDefault(); e.stopImmediatePropagation();
+    const m = Number($('#exMonth').value);
+    const y = Number($('#exYear').value);
+
+    const nameById  = new Map(state.parts.map(p=>[p.PartID, p.Name||'']));
+    const modelById = new Map(state.parts.map(p=>[p.PartID, p.Model||'']));
+
+    let rows = [];
+    try{
+      if(state.mode==='api' && window.apiGet){
+        rows = await window.apiGet('txns', {month:String(m), year:String(y)});
+      }else{
+        rows = (state.txns||[]).filter(t=>{
+          const d = new Date(t.Date);
+          return (d.getMonth()+1)===m && d.getFullYear()===y;
+        });
+      }
+    }catch{ rows = []; }
+
+    rows = rows.sort((a,b)=> new Date(a.Date)-new Date(b.Date));
+
+    const header = ['วันที่เวลา','รหัส','ชื่อ','ประเภท','โมเดล','จำนวน','ผู้ดำเนินการ','QR'];
+    const body = rows.map(r=>{
+      const thTime = new Date(r.Date).toLocaleString('th-TH', {hour12:false});
+      const payload = buildQrPayload(r.PartID||'');
+      const rec = [
+        thTime, r.PartID || '', nameById.get(r.PartID) || '',
+        r.Type || '', modelById.get(r.PartID) || '', r.Qty ?? 0, r.By || '', payload
+      ];
+      return rec.map(s=>{
+        s = String(s ?? '');
+        return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+      }).join(',');
+    });
+
+    const csv = [header.join(','), ...body].join('\n');
+    const blob = new Blob(["\uFEFF"+csv], {type:'text/csv;charset=utf-8;'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `Stock_Txns_${y}-${String(m).padStart(2,'0')}_QR.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+
+    notify({title:'ส่งออกแล้ว', message:`CSV + QR • เดือน ${m}/${y} จำนวน ${rows.length} รายการ`});
+  }, {capture:true});
+})();
+
+/* ปุ่ม “แผ่นพิมพ์ QR” (A4) */
+(function injectQrSheetButton(){
+  const host = document.querySelector('#page-export .row:last-child');
+  if(!host || host.querySelector('#btnExportQrSheet')) return;
+  const b = document.createElement('button');
+  b.id='btnExportQrSheet'; b.textContent='แผ่นพิมพ์ QR';
+  b.style.marginLeft='8px';
+  host.appendChild(b);
+
+  b.addEventListener('click', async ()=>{
+    const m = Number($('#exMonth').value);
+    const y = Number($('#exYear').value);
+
+    let txns = [];
+    try{
+      if(state.mode==='api' && window.apiGet){
+        txns = await window.apiGet('txns', {month:String(m), year:String(y)});
+      }else{
+        txns = (state.txns||[]).filter(t=>{
+          const d=new Date(t.Date);
+          return (d.getMonth()+1)===m && d.getFullYear()===y;
+        });
+      }
+    }catch{ txns = []; }
+
+    const ids = Array.from(new Set(txns.map(t=>t.PartID).filter(Boolean)));
+    const parts = ids.map(id => state.parts.find(p=>p.PartID===id)).filter(Boolean);
+    if(parts.length===0){
+      return notify({title:'ไม่มีรายการ', message:'เดือนนี้ไม่มีธุรกรรมสำหรับสร้าง QR', level:'warn'});
+    }
+    try{ await openPrintableQrSheet(parts); }catch(err){
+      notify({title:'สร้างแผ่นพิมพ์ไม่สำเร็จ', message: err?.message||'', level:'danger'});
+    }
+  });
+})();
+
+/* แผ่นพิมพ์ QR (A4) */
+async function openPrintableQrSheet(parts){
+  const items = [];
+  for(const p of parts){
+    const payload = buildQrPayload(p.PartID);
+    const img = await getQrImageSrc(payload, 300);
+    items.push({ p, payload, img });
+  }
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>QR Sheet</title>
+<style>
+  @page { size: A4; margin: 12mm; }
+  body{ font-family: system-ui, -apple-system, 'Noto Sans Thai', Segoe UI, Roboto, Arial; color:#0f172a; }
+  .head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; }
+  .card{ border:1px solid #e5e7eb; border-radius:12px; padding:10px; display:grid; gap:6px; }
+  .meta{ font-size:12px; color:#64748b; }
+  .name{ font-weight:700; font-size:14px; }
+  .qr{ width:100%; aspect-ratio:1/1; object-fit:contain; background:#fff; border:1px solid #e5e7eb; border-radius:10px; }
+  .foot{ font-size:11px; color:#475569; word-break:break-all }
+  @media print{ .noprint{ display:none } }
+</style>
+</head>
+<body>
+  <div class="head noprint">
+    <div><strong>QR Labels</strong> • รวม ${items.length} รายการ</div>
+    <div><button onclick="window.print()" style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#f8fafc;cursor:pointer">พิมพ์/บันทึก PDF</button></div>
+  </div>
+  <div class="grid">
+    ${items.map(({p,payload,img})=>`
+      <div class="card">
+        <img class="qr" src="${img}" alt="QR ${p.PartID}">
+        <div class="name">${p.PartID} — ${p.Name||''}</div>
+        <div class="meta">${p.Brand||'-'} ${p.Model||''} • ${p.Category||'-'} • ที่เก็บ ${p.Location||'-'}</div>
+        <div class="foot">${payload}</div>
+      </div>
+    `).join('')}
+  </div>
+</body>
+</html>`.trim();
+
+  const w = window.open('', '_blank');
+  if(!w) throw new Error('บราวเซอร์บล็อกป๊อปอัป');
+  w.document.open(); w.document.write(html); w.document.close();
+}
+/* =========================================================
+   📷 QR Scanner — Scan to Issue
+   - ปุ่ม "สแกน QR" ในหน้า "ค้นหา/เบิก"
+   - ใช้กล้องมือถือ/คอม + อัปโหลดรูป
+   - รองรับ BarcodeDetector (เร็ว) และ jsQR (fallback)
+   ========================================================= */
+
+(function qrScannerFeature(){
+
+  // --- สร้างปุ่ม "สแกน QR" ในหน้า 'ค้นหา/เบิก' ---
+  function injectScanButton(){
+    const tb = document.querySelector('#page-search .toolbar');
+    if(!tb || tb.querySelector('#btnScanQR')) return;
+    const btn = document.createElement('button');
+    btn.id = 'btnScanQR';
+    btn.className = 'secondary';
+    btn.textContent = 'สแกน QR';
+    tb.appendChild(btn);
+    btn.addEventListener('click', openQrScanner);
+  }
+
+  // hook ให้ทุกครั้งที่กดแท็บ "ค้นหา/เบิก" จะมีปุ่มนี้เสมอ
+  const __origSwitchTab = window.switchTab;
+  window.switchTab = function(tab){
+    __origSwitchTab && __origSwitchTab(tab);
+    if(tab==='search') injectScanButton();
+  };
+  // เรียกครั้งแรกหลังโหลด
+  injectScanButton();
+
+  // --- Modal DOM สแกนเนอร์ (ใช้สไตล์ modal เดิม) ---
+  function ensureQrScanModal(){
+    let m = document.getElementById('qrScanModal');
+    if(m) return m;
+    m = document.createElement('div');
+    m.id = 'qrScanModal';
+    m.className = 'modal';
+    m.setAttribute('aria-hidden','true');
+    m.innerHTML = `
+      <div class="modal__backdrop" data-close></div>
+      <div class="modal__panel" role="dialog" aria-modal="true">
+        <div class="modal__head">
+          <button class="modal__close" type="button" data-close aria-label="ปิด">×</button>
+          <div class="modal__title">สแกนคิวอาร์โค้ด</div>
+        </div>
+        <div class="modal__body">
+          <div class="scan-frame">
+            <video id="qrVideo" class="qrscan-video" playsinline muted></video>
+            <div class="scan-box" aria-hidden="true"></div>
+            <div class="scan-line" aria-hidden="true"></div>
+          </div>
+          <div class="qrscan-toolbar">
+            <select id="qrCamSel" title="เลือกกล้อง"></select>
+            <button id="qrTorchBtn" class="secondary" type="button">ไฟฉาย</button>
+            <input id="qrFile" type="file" accept="image/*" hidden />
+            <button id="qrPickBtn" class="secondary" type="button">สแกนจากรูป</button>
+            <div class="grow"></div>
+            <button class="secondary" data-close type="button">ปิด</button>
+          </div>
+          <div class="qr-tip">เคล็ดลับ: ให้ QR อยู่ในกรอบสี่เหลี่ยม • แสงสว่างพอ • กล้องด้านหลังจะโฟกัสดีกว่า</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(m);
+    m.querySelectorAll('[data-close]').forEach(el=> el.addEventListener('click', closeQrScanner));
+    m.querySelector('#qrPickBtn')?.addEventListener('click', ()=> m.querySelector('#qrFile').click());
+    m.querySelector('#qrFile')?.addEventListener('change', e=>{
+      const f = e.target.files?.[0]; if(f) scanFromImageFile(f);
+      e.target.value = '';
+    });
+    m.querySelector('#qrCamSel')?.addEventListener('change', e=> startCamera(e.target.value));
+    m.querySelector('#qrTorchBtn')?.addEventListener('click', toggleTorch);
+    return m;
+  }
+
+  // --- สถานะสแกนเนอร์ ---
+  let _stream = null, _track = null, _raf = 0;
+  let _detector = null;      // BarcodeDetector
+  let _useDetector = false;  // เลือกอัตโนมัติ
+  let _canvas = null, _ctx = null;
+
+  // multi-CDN loader (ถ้าไม่มีของเดิม)
+  function loadJs(url, timeout=7000){
+    if (typeof loadScriptWithTimeout === 'function') {
+      return loadScriptWithTimeout(url, timeout);
+    }
+    return new Promise((resolve, reject)=>{
+      const s = document.createElement('script');
+      let done = false;
+      const t = setTimeout(()=>{ if(!done){ done=true; s.remove(); reject(new Error('timeout')); }}, timeout);
+      s.src = url; s.async = true;
+      s.onload = ()=>{ if(!done){ done=true; clearTimeout(t); resolve(); } };
+      s.onerror = ()=>{ if(!done){ done=true; clearTimeout(t); reject(new Error('load error')); } };
+      document.head.appendChild(s);
+    });
+  }
+
+  const JSQR_CDNS = [
+    'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js',
+    'https://unpkg.com/jsqr@1.4.0/dist/jsQR.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js'
+  ];
+  async function ensureJsQR(){
+    if(window.jsQR) return true;
+    for(const u of JSQR_CDNS){
+      try{ await loadJs(u); if(window.jsQR) return true; }catch(_){}
+    }
+    return false;
+  }
+
+  // --- เปิดสแกนเนอร์ ---
+  async function openQrScanner(){
+    const modal = ensureQrScanModal();
+    document.body.classList.add('modal-open');
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden','false');
+
+    // เลือกเครื่องมือ decode
+    _useDetector = ('BarcodeDetector' in window);
+    if(_useDetector){
+      try{ _detector = new BarcodeDetector({ formats: ['qr_code'] }); }
+      catch{ _useDetector = false; }
+    }
+    if(!_useDetector){
+      const ok = await ensureJsQR();
+      if(!ok){ notify({title:'เปิดสแกนเนอร์ไม่ได้', message:'โหลดตัวถอดรหัส QR ไม่สำเร็จ', level:'danger'}); closeQrScanner(); return; }
+    }
+
+    try{
+      await startCamera();   // default: กล้องหลัง
+      startLoop();
+    }catch(err){
+      notify({title:'เข้าถึงกล้องไม่ได้', message: err?.message || 'โปรดอนุญาตการใช้กล้อง', level:'danger'});
+      closeQrScanner();
+    }
+  }
+
+  // --- ปิดสแกนเนอร์ ---
+  function closeQrScanner(){
+    cancelAnimationFrame(_raf); _raf = 0;
+    if(_track){ try{ _track.stop(); }catch{} }
+    if(_stream){ try{ _stream.getTracks().forEach(t=>t.stop()); }catch{} }
+    _track=null; _stream=null;
+
+    const modal = document.getElementById('qrScanModal');
+    if(modal){
+      modal.classList.remove('show');
+      modal.setAttribute('aria-hidden','true');
+      document.body.classList.remove('modal-open');
+      const v = document.getElementById('qrVideo'); if(v){ v.pause?.(); v.srcObject=null; }
+    }
+  }
+
+  // --- กล้อง ---
+  async function startCamera(deviceId){
+    stopCamera();
+    const cons = { video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: { ideal:'environment' } }, audio:false };
+    _stream = await navigator.mediaDevices.getUserMedia(cons);
+    _track = _stream.getVideoTracks()[0];
+
+    const video = document.getElementById('qrVideo');
+    video.srcObject = _stream;
+    await video.play();
+
+    await populateCameras(deviceId);
+  }
+  function stopCamera(){
+    try{ cancelAnimationFrame(_raf); }catch{}
+    if(_track) try{ _track.stop(); }catch{}
+    if(_stream) try{ _stream.getTracks().forEach(t=>t.stop()); }catch{}
+    _track=null; _stream=null;
+  }
+  async function populateCameras(selectedId){
+    const sel = document.getElementById('qrCamSel'); if(!sel) return;
+    const devs = await navigator.mediaDevices.enumerateDevices().catch(()=>[]);
+    const cams = devs.filter(d=> d.kind==='videoinput');
+    sel.innerHTML = cams.map(d => `<option value="${d.deviceId}">${d.label || 'กล้อง'}</option>`).join('');
+    const rear = cams.find(c => /back|rear|environment/i.test(c.label||''))?.deviceId;
+    sel.value = selectedId || rear || cams[0]?.deviceId || '';
+  }
+  async function toggleTorch(){
+    if(!_track) return;
+    const caps = _track.getCapabilities?.();   // Chrome/Android
+    if(!caps || !caps.torch) return notify({title:'อุปกรณ์ไม่รองรับไฟฉาย', level:'warn'});
+    const now = _track.getSettings?.().torch;
+    try{ await _track.applyConstraints({ advanced: [{ torch: !now }] }); }
+    catch{ notify({title:'เปิดไฟฉายไม่สำเร็จ', level:'warn'}); }
+  }
+
+  // --- วนอ่านภาพและถอดรหัส ---
+  function startLoop(){
+    const video = document.getElementById('qrVideo');
+    _canvas = _canvas || document.createElement('canvas');
+    _ctx = _ctx || _canvas.getContext('2d', { willReadFrequently:true });
+
+    const tick = async ()=>{
+      if(!video || video.readyState < 2){ _raf = requestAnimationFrame(tick); return; }
+
+      const vw = video.videoWidth, vh = video.videoHeight;
+      _canvas.width = vw; _canvas.height = vh;
+
+      let text = '';
+      try{
+        if(_useDetector && _detector){
+          // BarcodeDetector — เร็วและแม่น
+          const codes = await _detector.detect(video);
+          if(codes && codes.length) text = codes[0].rawValue || codes[0].raw || '';
+        }else if(window.jsQR){
+          // jsQR — วาดลงแคนวาสแล้วถอด
+          _ctx.drawImage(video, 0, 0, vw, vh);
+          const id = _ctx.getImageData(0, 0, vw, vh);
+          const code = window.jsQR(id.data, id.width, id.height, { inversionAttempts:'attemptBoth' });
+          if(code && code.data) text = code.data;
+        }
+      }catch(_){ /* ignore frame errors */ }
+
+      if(text){
+        onDecoded(text);
+        return; // ปิด loop เมื่อเจอผลลัพธ์
+      }
+      _raf = requestAnimationFrame(tick);
+    };
+    _raf = requestAnimationFrame(tick);
+  }
+
+  // --- สแกนจากไฟล์ภาพ ---
+  async function scanFromImageFile(file){
+    // ใช้ BarcodeDetector กับ ImageBitmap ได้โดยตรง
+    if(_useDetector && _detector){
+      try{
+        const bmp = await createImageBitmap(file);
+        const codes = await _detector.detect(bmp);
+        if(codes && codes.length){ onDecoded(codes[0].rawValue || ''); return; }
+      }catch(_){}
+    }
+    // fallback -> jsQR
+    const ok = await ensureJsQR();
+    if(!ok){ notify({title:'สแกนจากรูปไม่ได้', level:'danger'}); return; }
+    const img = new Image();
+    img.onload = ()=>{
+      const c = document.createElement('canvas');
+      c.width = img.width; c.height = img.height;
+      const x = c.getContext('2d', {willReadFrequently:true});
+      x.drawImage(img,0,0);
+      const id = x.getImageData(0,0,c.width,c.height);
+      const code = window.jsQR(id.data, id.width, id.height, { inversionAttempts:'attemptBoth' });
+      if(code && code.data) onDecoded(code.data);
+      else notify({title:'ไม่พบ QR ในรูป', level:'warn'});
+    };
+    img.onerror = ()=> notify({title:'เปิดรูปไม่สำเร็จ', level:'danger'});
+    img.src = URL.createObjectURL(file);
+  }
+
+  // --- แปลงข้อความ QR -> PartID ---
+  function parseQrPayload(s){
+    s = String(s||'').trim();
+    // รูปแบบมาตรฐานของแอป:  MPR:<PartID>|<Model>
+    const m = /^MPR:([^|]+)(?:\|.*)?$/i.exec(s);
+    if(m) return (m[1]||'').trim();
+    // เผื่อสแกนเป็นแค่รหัส
+    return s;
+  }
+
+  // --- เมื่อถอดรหัสได้ ---
+  async function onDecoded(text){
+    try{ navigator.vibrate?.(20); }catch{}
+    const partId = parseQrPayload(text);
+    if(!partId){
+      notify({title:'QR ไม่ถูกต้อง', level:'warn'}); return;
+    }
+
+    // หาอะไหล่ใน state ก่อน
+    let part = (state.parts||[]).find(p=> String(p.PartID).trim()===partId);
+    // ถ้าไม่เจอและโหมด API -> ลองรีเฟรชด่วน
+    if(!part && state.mode==='api'){
+      try{ await refreshAllFromApi(); part = (state.parts||[]).find(p=> String(p.PartID).trim()===partId); }catch{}
+    }
+
+    if(!part){
+      notify({title:'ไม่พบรหัสในสต็อก', message:`${partId}`, level:'danger'});
+      return; // ให้ผู้ใช้สแกนใหม่ต่อได้ (ไม่ปิด modal)
+    }
+
+    // พบแล้ว -> เปิด modal เบิก พร้อม preset จำนวน 1
+    closeQrScanner();
+    openIssueModal(part, 1);
+  }
+
+})();
+
+
 /* ===== Init ===== */
 loadAll();
 initBottomNav();
 updateAuthUI();
-
-
