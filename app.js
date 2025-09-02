@@ -2467,8 +2467,55 @@ async function openPrintableQrSheet(parts){
 
 })();
 
+/* =========================================================
+   ปุ่ม: พิมพ์ QR ทั้งหมด (หน้า 'ส่งออก')
+   - ใช้ openPrintableQrSheet(parts) ที่มีอยู่แล้ว
+   - ครอบคลุมทั้งโหมด demo / api (ดึงจาก state.parts)
+   ========================================================= */
+(function injectPrintAllQrAllParts(){
+  // หาตำแหน่งเดียวกับปุ่ม "แผ่นพิมพ์ QR" เดิม
+  const host = document.querySelector('#page-export .row:last-child');
+  if(!host || host.querySelector('#btnPrintAllQr')) return;
+
+  const bAll = document.createElement('button');
+  bAll.id = 'btnPrintAllQr';
+  bAll.textContent = 'พิมพ์ QR ทั้งหมด';
+  bAll.style.marginLeft = '8px';
+  host.appendChild(bAll);
+
+  bAll.addEventListener('click', async ()=>{
+    // ถ้าเป็นโหมด API อาจอยากรีเฟรชก่อน (เผื่อมีรายการใหม่)
+    try{
+      if(state.mode === 'api' && typeof refreshAllFromApi === 'function'){
+        await refreshAllFromApi();
+      }
+    }catch{}
+
+    const parts = (state.parts || [])
+      .slice()
+      .sort((a,b)=> String(a.PartID||'').localeCompare(String(b.PartID||'')));
+
+    if(parts.length === 0){
+      return notify({ title:'ไม่มีรายการ', message:'ยังไม่มีอะไหล่ในระบบ', level:'warn' });
+    }
+
+    // ถ้าจำนวนเยอะ เตือนให้ผู้ใช้ทราบก่อน (แต่ยังไปต่อได้)
+    if(parts.length > 150){
+      const ok = confirm(`มีทั้งหมด ${parts.length} รายการ • การสร้าง QR อาจใช้เวลาเล็กน้อย\nต้องการดำเนินการต่อหรือไม่?`);
+      if(!ok) return;
+    }
+
+    notify({ title:'กำลังเตรียม QR', message:`รวม ${parts.length} รายการ` });
+    try{
+      await openPrintableQrSheet(parts); // ใช้ฟังก์ชันเดิมที่สร้างหน้า A4 และมีปุ่มพิมพ์ให้
+    }catch(err){
+      notify({ title:'สร้างแผ่นพิมพ์ไม่สำเร็จ', message: err?.message || '', level:'danger' });
+    }
+  });
+})();
 
 /* ===== Init ===== */
 loadAll();
 initBottomNav();
 updateAuthUI();
+
