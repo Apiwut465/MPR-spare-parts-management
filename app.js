@@ -35,6 +35,26 @@ function statusOf(p){
   return 'ปกติ';
 }
 const sumQty = ps => ps.reduce((s,p)=> s + Number(p.Qty||0), 0);
+/* === เพิ่ม: ตัวช่วยเรื่อง Model + Gen รหัส === */
+const _norm = s => String(s||'').trim().toLowerCase();
+
+function getPartByModel(model){
+  const m = _norm(model);
+  if(!m) return null;
+  return (state.parts||[]).find(p => _norm(p.Model) === m);
+}
+
+function nextPartId(){
+  // หาเลขที่มากสุดของรูปแบบ P-0001 แล้ว +1
+  const nums = (state.parts||[])
+    .map(p => String(p.PartID||''))
+    .map(id => (/^P-(\d+)$/i.exec(id)||[])[1])
+    .filter(Boolean)
+    .map(n => parseInt(n,10))
+    .sort((a,b)=>b-a);
+  const next = (nums[0]||0) + 1;
+  return `P-${String(next).padStart(4,'0')}`;
+}
 
 /* ===== Demo seed / Load / Save ===== */
 function ensureDemo(){
@@ -559,10 +579,11 @@ function readFileAsDataURL(file){
   });
 }
 
+// ===== Receive (เพิ่มของเข้าสต็อก) — DEMO: ล็อคด้วย “โมเดล” + gen รหัสอัตโนมัติ =====
 async function handleReceiveSubmit(){
-  const code  = $('#rc_code').value.trim();
+  let code  = $('#rc_code').value.trim();      // ถ้าว่าง จะ gen ให้
   const name  = $('#rc_name').value.trim();
-  const model = $('#rc_model').value.trim();
+  const model = $('#rc_model').value.trim();   // ใช้โมเดลเป็นคีย์
   const brand = $('#rc_brand').value.trim();
   const qty   = Number($('#rc_qty').value||0);
   const min   = Number($('#rc_min').value||0);
@@ -570,33 +591,57 @@ async function handleReceiveSubmit(){
   const cat   = $('#rc_cat').value.trim();
   const file  = $('#rc_img').files[0];
 
-  if(!code || !qty || qty<=0) return notify({title:'ข้อมูลไม่ครบ', message:'กรอกรหัสและจำนวนให้ถูกต้อง', level:'warn'});
+  if(!model) return notify({title:'ข้อมูลไม่ครบ', message:'กรอก "โมเดล" เพื่อใช้ล็อกรายการ', level:'warn'});
+  if(!qty || qty<=0) return notify({title:'ข้อมูลไม่ครบ', message:'กรอกจำนวนให้ถูกต้อง', level:'warn'});
 
+  // หาอะไหล่ที่ “โมเดล” ตรงกัน
+  let target = getPartByModel(model);
+
+  // อ่านรูป (ถ้ามี)
   let imageURL = '';
-  if(file){ try{ imageURL = await readFileAsDataURL(file); }catch{ notify({title:'อ่านรูปไม่สำเร็จ', message:'โปรดลองใหม่', level:'warn'}); } }
-
-  let p = state.parts.find(x=>x.PartID===code);
-  if(!p){
-    p = { PartID:code, Name:name, Model:model, Brand:brand, Min:min, Qty:0, Location:loc, Category:cat, ImageURL:imageURL };
-    state.parts.push(p);
-  }else{
-    if(name)  p.Name = name;
-    if(model) p.Model = model;
-    if(brand) p.Brand = brand;
-    if(loc)   p.Location = loc;
-    if(cat)   p.Category = cat;
-    if(!isNaN(min)) p.Min = min;
-    if(imageURL) p.ImageURL = imageURL;
+  if(file){ 
+    try{ imageURL = await readFileAsDataURL(file); }
+    catch{ notify({title:'อ่านรูปไม่สำเร็จ', level:'warn'}); }
   }
 
-  if(cat && !state.categories.includes(cat)) state.categories.push(cat);
+  if(target){
+    // อัปเดตข้อมูลเท่าที่กรอก และเพิ่มจำนวน
+    if(name)  target.Name = name;
+    if(brand) target.Brand = brand;
+    if(loc)   target.Location = loc;
+    if(cat)   target.Category = cat;
+    if(!isNaN(min)) target.Min = min;
+    if(imageURL) target.ImageURL = imageURL;
 
-  const txn = {TxnID:'T-'+Date.now(), Date:new Date().toISOString(), PartID:code, Type:'รับ', Qty:qty, By:'', Ref:''};
+    target.Qty = Number(target.Qty||0) + qty;
 
-  p.Qty = Number(p.Qty||0) + qty;
-  state.txns.push(txn);
-  saveDemo();
-  notify({title:'บันทึกสำเร็จ (Demo)', message:`รับเข้า ${code} จำนวน ${qty}`});
+    state.txns.push({TxnID:'T-'+Date.now(), Date:new Date().toISOString(), PartID:target.PartID, Type:'รับ', Qty:qty, By:'', Ref:''});
+    if(cat && !state.categories.includes(cat)) state.categories.push(cat);
+
+    saveDemo();
+    notify({title:'อัปเดตสำเร็จ', message:`+${qty} → ${target.PartID} (Model ${target.Model})`});
+  }else{
+    // ไม่พบโมเดลนี้ → สร้างใหม่ (gen รหัสถ้าช่องว่าง)
+    if(!code) code = nextPartId();
+
+    const p = {
+      PartID: code,
+      Name: name,
+      Model: model,
+      Brand: brand,
+      Min: isNaN(min)?0:min,
+      Qty: qty,
+      Location: loc,
+      Category: cat,
+      ImageURL: imageURL
+    };
+    state.parts.push(p);
+    state.txns.push({TxnID:'T-'+Date.now(), Date:new Date().toISOString(), PartID:code, Type:'รับ', Qty:qty, By:'', Ref:''});
+    if(cat && !state.categories.includes(cat)) state.categories.push(cat);
+
+    saveDemo();
+    notify({title:'เพิ่มรายการใหม่', message:`${code} (Model ${model}) จำนวน ${qty}`});
+  }
 
   renderDatalists();
   renderDashboard();
@@ -705,6 +750,8 @@ function initExportPage(){
     ySel.dataset.filled = '1';
   }
   ySel.value = String(now.getFullYear());
+    mountQrSelectorUI();
+  renderQrSelector();
 }
 
 function exportCsv(){
@@ -1072,139 +1119,103 @@ window.doQuickIssue_API = async function(){
   }
 };
 
-  /* ---------- Receive (API) ---------- */
-  let _receivingBusy = false;
-  window.handleReceiveSubmit_API = async function(){
-    if(_receivingBusy) return;
+ /* ---------- Receive (API) — ล็อคด้วย “โมเดล” + gen รหัสอัตโนมัติ ---------- */
+let _receivingBusy = false;
+window.handleReceiveSubmit_API = async function(){
+  if(_receivingBusy) return;
 
-    const code  = $('#rc_code').value.trim();
-    const name  = $('#rc_name').value.trim();
-    const model = $('#rc_model').value.trim();
-    const brand = $('#rc_brand').value.trim();
-    const qty   = Number($('#rc_qty').value||0);
-    const min   = Number($('#rc_min').value||0);
-    const loc   = $('#rc_loc').value.trim();
-    const cat   = $('#rc_cat').value.trim();
-    const file  = $('#rc_img').files?.[0];
+  let code  = $('#rc_code').value.trim();      // ถ้าว่างจะ gen เมื่อ “ต้องสร้างใหม่”
+  const name  = $('#rc_name').value.trim();
+  const model = $('#rc_model').value.trim();   // ใช้โมเดลเป็นคีย์
+  const brand = $('#rc_brand').value.trim();
+  const qty   = Number($('#rc_qty').value||0);
+  const min   = Number($('#rc_min').value||0);
+  const loc   = $('#rc_loc').value.trim();
+  const cat   = $('#rc_cat').value.trim();
+  const file  = $('#rc_img').files?.[0];
 
-    if(!code || !qty || qty<=0) return notify({title:'ข้อมูลไม่ครบ', message:'กรอกรหัสและจำนวนให้ถูกต้อง', level:'warn'});
+  if(!model) return notify({title:'ข้อมูลไม่ครบ', message:'กรอก "โมเดล" เพื่อใช้ล็อกรายการ', level:'warn'});
+  if(!qty || qty<=0) return notify({title:'ข้อมูลไม่ครบ', message:'กรอกจำนวนให้ถูกต้อง', level:'warn'});
 
-    _receivingBusy = true;
+  _receivingBusy = true;
 
-    let imageBase64 = '';
-    if(file && typeof window.readFileAsDataURLCompressed === 'function'){
-      try{ imageBase64 = await window.readFileAsDataURLCompressed(file, 1400, .82); }catch{}
-    }
+  // อัดรูปเป็น base64 (ถ้ามี)
+  let imageBase64 = '';
+  if(file && typeof window.readFileAsDataURLCompressed === 'function'){
+    try{ imageBase64 = await window.readFileAsDataURLCompressed(file, 1400, .82); }catch{}
+  }
 
-    const idx = state.parts.findIndex(x=>x.PartID===code);
-    let before = null;
+  // ตรวจว่ามีอะไหล่ที่โมเดลนี้อยู่แล้วหรือไม่
+  let target = getPartByModel(model);
+  try{
+    if(target){
+      // ----- อัปเดตรายการเดิม + รับเข้า -----
+      // อัปเดตข้อมูลที่กรอก (ชื่อ/ยี่ห้อ/ที่เก็บ/หมวด/ขั้นต่ำ/รูป)
+      const partUpdate = {
+        ...target,
+        Name:  name  || target.Name,
+        Brand: brand || target.Brand,
+        Location: loc || target.Location,
+        Category: cat || target.Category,
+        Min: isNaN(min) ? target.Min : min,
+      };
+      if(imageBase64) partUpdate.ImageURL = imageBase64; // ให้ back-end อัปขึ้น storage ใน receive_new เฉพาะตอนสร้างใหม่; ที่นี่เราจะ setpart แทน
 
-    try{
-      if(idx>=0){
-        before = {...state.parts[idx]};
-        state.parts[idx] = {
-          ...before,
-          Name: name || before.Name,
-          Model: model || before.Model,
-          Brand: brand || before.Brand,
-          Location: loc || before.Location,
-          Category: cat || before.Category,
-          Min: isNaN(min) ? before.Min : min,
-          Qty: Number(before.Qty||0) + qty,
-          ImageURL: imageBase64 || before.ImageURL
-        };
-      }else{
-        state.parts.push({
-          PartID:code, Name:name, Model:model, Brand:brand,
-          Min:min, Qty:qty, Location:loc, Category:cat,
-          ImageURL:imageBase64
-        });
+      // อัปเดตเมตาก่อน (optional)
+      try{ await window.apiPost('setpart', { part: partUpdate }); }catch{}
+
+      // รับเข้าจำนวน
+      await window.apiPost('receive', { partId: target.PartID, qty });
+
+      notify({title:'อัปเดตสำเร็จ', message:`+${qty} → ${target.PartID} (Model ${target.Model})`});
+    }else{
+      // ----- สร้างใหม่: gen รหัสถ้าช่องรหัสว่าง -----
+      if(!code){
+        // กันชนกับของเดิม
+        code = nextPartId();
+        while(state.parts.some(p => String(p.PartID).trim().toLowerCase() === code.toLowerCase())){
+          // ขยับต่อถ้าดันซ้ำ (กรณี state เก่าหรือหลายเครื่องใช้งาน)
+          code = `P-${String(parseInt(code.slice(2)) + 1).padStart(4,'0')}`;
+        }
       }
-      if(cat && !state.categories.includes(cat)) state.categories.push(cat);
-      renderDatalists(); renderDashboard(); renderGallery();
 
-      if(idx>=0){
-        await window.apiPost('receive', { partId: code, qty });
-      }else{
-        await window.apiPost('receive_new', {
-          part: { PartID:code, Name:name, Model:model, Brand:brand, Min:min, Qty:0, Location:loc, Category:cat },
-          qty,
-          imageBase64
-        });
-      }
+      const newPart = {
+        PartID: code,
+        Name: name,
+        Model: model,
+        Brand: brand,
+        Min: isNaN(min)?0:min,
+        Qty: 0,               // จะให้ฟังก์ชัน receive เพิ่มให้
+        Location: loc,
+        Category: cat,
+        ImageURL: ''          // จะอัปโหลดจาก imageBase64 ใน receive_new
+      };
 
-      notify({title:'บันทึกสำเร็จ', message:`รับเข้า ${code} จำนวน ${qty}`});
-      renderGallery(); renderDashboard();
+      await window.apiPost('receive_new', {
+        part: newPart,
+        qty,
+        imageBase64
+      });
 
-      // ล้างฟอร์ม
-      $('#rc_code').value=''; $('#rc_name').value=''; $('#rc_model').value='';
-      $('#rc_brand').value=''; $('#rc_qty').value='1'; $('#rc_min').value='0';
-      $('#rc_loc').value=''; $('#rc_cat').value=''; $('#rc_img').value='';
-      $('#rc_preview')?.removeAttribute('src');
-
-      try{ await refreshAllFromApi(); renderDatalists(); renderDashboard(); renderGallery(); }catch(_){}
-      goDashboard();
-    }catch(err){
-      if(idx>=0 && before){ state.parts[idx] = before; }
-      else { state.parts = state.parts.filter(p=>p.PartID!==code); }
-      renderDatalists(); renderDashboard(); renderGallery();
-      notify({title:'รับเข้าล้มเหลว', message: err.message||'error', level:'danger'});
-    }finally{
-      _receivingBusy = false;
-    }
-  };
-
-  /* ---------- Edit/Delete ผ่าน API ---------- */
-  $('#e_save')?.addEventListener('click', async (e)=>{
-    if(state.mode!=='api') return;
-    e.stopImmediatePropagation(); e.preventDefault();
-
-    if(!_editingId) return;
-    const newCode = $('#e_code').value.trim();
-    if(newCode!==_editingId && state.parts.some(x=>x.PartID===newCode)){
-      return notify({title:'ซ้ำ!', message:'รหัสนี้มีอยู่แล้ว', level:'danger'});
+      notify({title:'เพิ่มรายการใหม่', message:`${code} (Model ${model}) จำนวน ${qty}`});
     }
 
-    const part = {
-      PartID:newCode,
-      Name:$('#e_name').value.trim(),
-      Category:$('#e_cat').value.trim(),
-      Brand:$('#e_brand').value.trim(),
-      Model:$('#e_model').value.trim(),
-      Qty:Number($('#e_qty').value||0),
-      Min:Number($('#e_min').value||0),
-      Location:$('#e_loc').value.trim(),
-      ImageURL:$('#e_img').value.trim()
-    };
+    // รีเฟรช + เคลียร์ฟอร์ม + กลับแดชบอร์ด
+    try { await refreshAllFromApi(); } catch {}
+    renderDatalists(); renderDashboard(); renderGallery();
 
-    try{
-      await window.apiPost('setpart', { part });
-      await refreshAllFromApi();
-      renderStock(); renderDashboard(); renderDatalists();
-      notify({title:'บันทึกแล้ว', message:newCode});
-      $('#editModal')?.classList.remove('show');
-      $('#editModal')?.setAttribute('aria-hidden','true');
-      document.body.classList.remove('modal-open');
-      _editingId = null;
-    }catch(err){
-      notify({title:'บันทึกล้มเหลว', message: err.message||'error', level:'danger'});
-    }
-  });
+    $('#rc_code').value=''; $('#rc_name').value=''; $('#rc_model').value='';
+    $('#rc_brand').value=''; $('#rc_qty').value='1'; $('#rc_min').value='0';
+    $('#rc_loc').value=''; $('#rc_cat').value=''; $('#rc_img').value='';
+    $('#rc_preview')?.removeAttribute('src');
 
-  const __old_deletePart = window.deletePart;
-  window.deletePart = async function(partId){
-    if(state.mode!=='api') return __old_deletePart(partId);
-    const p = state.parts.find(x=>x.PartID===partId); if(!p) return;
-    if(!confirm(`ลบอะไหล่ ${p.PartID} — ${p.Name}?`)) return;
-    try{
-      await window.apiPost('deletepart', { partId });
-      await refreshAllFromApi();
-      renderStock(); renderDashboard(); renderDatalists();
-      notify({title:'ลบแล้ว', message: partId});
-    }catch(err){
-      notify({title:'ลบไม่สำเร็จ', message: err.message||'error', level:'danger'});
-    }
-  };
+    goDashboard();
+  }catch(err){
+    notify({title:'รับเข้าล้มเหลว', message: err.message||'error', level:'danger'});
+  }finally{
+    _receivingBusy = false;
+  }
+};
 
   /* ---------- History (API) ---------- */
   async function renderHistory_API(){
@@ -2130,9 +2141,9 @@ function openQrLabelPage({ part, payload, src, isExternal }){
 /* แผ่นพิมพ์ QR (A4) */
 async function openPrintableQrSheet(parts){
   const items = [];
-  for(const p of parts){
+  for (const p of parts){
     const payload = buildQrPayload(p.PartID);
-    const img = await getQrImageSrc(payload, 300);
+    const img = await getQrImageSrc(payload, 140); // QR ขนาดเล็กลงคล้ายรูปตัวอย่าง
     items.push({ p, payload, img });
   }
 
@@ -2144,29 +2155,63 @@ async function openPrintableQrSheet(parts){
 <title>QR Sheet</title>
 <style>
   @page { size: A4; margin: 12mm; }
-  body{ font-family: system-ui, -apple-system, 'Noto Sans Thai', Segoe UI, Roboto, Arial; color:#0f172a; }
+
+  :root{
+    --ink:#0f172a; --muted:#64748b; --line:#e5e7eb;
+  }
+  body{ font-family: system-ui,-apple-system,'Noto Sans Thai',Segoe UI,Roboto,Arial; color:var(--ink); }
+
   .head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
-  .grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; }
-  .card{ border:1px solid #e5e7eb; border-radius:12px; padding:10px; display:grid; gap:6px; }
-  .meta{ font-size:12px; color:#64748b; }
-  .name{ font-weight:700; font-size:14px; }
-  .qr{ width:100%; aspect-ratio:1/1; object-fit:contain; background:#fff; border:1px solid #e5e7eb; border-radius:10px; }
-  .foot{ font-size:11px; color:#475569; word-break:break-all }
+  .btn{ padding:8px 12px; border-radius:8px; border:1px solid var(--line); background:#f8fafc; cursor:pointer }
+
+  /* ใช้ multi-column layout -> 2 คอลัมน์ต่อหน้า */
+  .sheet{
+    column-count: 2;
+    column-gap: 12px;              /* ระยะห่างระหว่างคอลัมน์ */
+  }
+
+  .card{
+    break-inside: avoid;           /* กันการ์ดโดนตัดครึ่ง */
+    page-break-inside: avoid;
+    -webkit-column-break-inside: avoid;
+    margin: 0 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px;
+    background: #fff;
+
+    display: grid;
+    grid-template-columns: 140px 1fr;   /* ซ้าย QR ขวาข้อความ */
+    gap: 12px;
+    align-items: center;
+  }
+
+  .qr{
+    width: 140px; height: 140px; object-fit: contain;
+    background:#fff; border:1px solid var(--line); border-radius:10px;
+  }
+  .name{ font-weight:800; font-size:16px; }
+  .meta{ font-size:13px; color:var(--muted); margin-top:2px; }
+  .foot{ font-size:12px; color:#475569; word-break:break-all; margin-top:4px; }
+
   @media print{ .noprint{ display:none } }
 </style>
 </head>
 <body>
   <div class="head noprint">
     <div><strong>QR Labels</strong> • รวม ${items.length} รายการ</div>
-    <div><button onclick="window.print()" style="padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#f8fafc;cursor:pointer">พิมพ์/บันทึก PDF</button></div>
+    <div><button class="btn" onclick="window.print()">พิมพ์/บันทึก PDF</button></div>
   </div>
-  <div class="grid">
+
+  <div class="sheet">
     ${items.map(({p,payload,img})=>`
       <div class="card">
         <img class="qr" src="${img}" alt="QR ${p.PartID}">
-        <div class="name">${p.PartID} — ${p.Name||''}</div>
-        <div class="meta">${p.Brand||'-'} ${p.Model||''} • ${p.Category||'-'} • ที่เก็บ ${p.Location||'-'}</div>
-        <div class="foot">${payload}</div>
+        <div>
+          <div class="name">${p.PartID} — ${p.Name||''}</div>
+          <div class="meta">${p.Brand||'-'} ${p.Model||''} • ${p.Category||'-'} • ที่เก็บ ${p.Location||'-'}</div>
+          <div class="foot">${payload}</div>
+        </div>
       </div>
     `).join('')}
   </div>
@@ -2177,6 +2222,7 @@ async function openPrintableQrSheet(parts){
   if(!w) throw new Error('บราวเซอร์บล็อกป๊อปอัป');
   w.document.open(); w.document.write(html); w.document.close();
 }
+
 /* =========================================================
    📷 QR Scanner — Scan to Issue
    - ปุ่ม "สแกน QR" ในหน้า "ค้นหา/เบิก"
@@ -2513,9 +2559,203 @@ async function openPrintableQrSheet(parts){
     }
   });
 })();
+/* =========================================================
+   QR PICKER (Export): เลือกติ๊กเพื่อพิมพ์ + เลือกทั้งหมด
+   ========================================================= */
+/* ====== QR PICKER (สวยงามขึ้น) ====== */
+const selectedForQr = new Set();
+
+function updateSelectedCTA(){
+  const btn = document.getElementById('btnPrintSelected');
+  const sel = selectedForQr.size;
+  const meta = document.getElementById('qrPickMeta');
+  if(btn){
+    btn.disabled = sel === 0;
+    btn.classList.toggle('is-disabled', sel === 0);
+    btn.querySelector('[data-count]')?.setAttribute('data-count', String(sel));
+    const label = sel>0 ? `พิมพ์ QR (${sel})` : 'พิมพ์ QR (ที่เลือก)';
+    btn.firstChild.nodeValue = label + ' ';
+  }
+  if(meta){
+    const total = document.querySelectorAll('#qrPickPanel .qrpick').length;
+    meta.textContent = `ผลลัพธ์ ${total} รายการ • เลือกแล้ว ${sel}`;
+  }
+}
+
+function syncSelectAllCheckbox(){
+  const all = document.getElementById('qrPickAll');
+  const items = Array.from(document.querySelectorAll('#qrPickPanel .qrpick'));
+  if(!all){ updateSelectedCTA(); return; }
+  if(items.length===0){ all.indeterminate=false; all.checked=false; updateSelectedCTA(); return; }
+  const checked = items.filter(x=>x.checked).length;
+  all.checked = checked === items.length;
+  all.indeterminate = checked>0 && checked<items.length;
+  updateSelectedCTA();
+}
+
+function renderQrSelector(){
+  const host = document.getElementById('qrPickPanel'); if(!host) return;
+  const q = (document.getElementById('qrPickQ')?.value||'').trim().toLowerCase();
+
+  const parts = (state.parts||[])
+    .filter(p=>{
+      if(!q) return true;
+      const t = `${p.PartID||''} ${p.Name||''} ${p.Brand||''} ${p.Model||''} ${p.Category||''}`.toLowerCase();
+      return t.includes(q);
+    })
+    .sort((a,b)=> String(a.PartID||'').localeCompare(String(b.PartID||'')));
+
+  if(parts.length===0){
+    host.innerHTML = `<div class="empty">
+      <div>ไม่พบรายการที่ตรงกับคำค้น</div>
+      <div class="hint">ลองพิมพ์คำให้น้อยลง หรือเปลี่ยนคำค้น</div>
+    </div>`;
+    syncSelectAllCheckbox();
+    return;
+  }
+
+  host.innerHTML = parts.map(p=>{
+    const checked = selectedForQr.has(p.PartID) ? 'checked' : '';
+    return `
+      <label class="pick-row ${checked?'is-checked':''}" tabindex="0">
+        <input type="checkbox" class="qrpick" data-id="${p.PartID}" ${checked} aria-label="เลือก ${p.PartID}">
+        <div class="pick-main">
+          <div class="pick-title"><span class="tag">${p.PartID}</span> <strong>${p.Name||''}</strong></div>
+          <div class="pick-sub">${p.Brand||''} ${p.Model||''} • ${p.Category||'-'}</div>
+        </div>
+      </label>
+    `;
+  }).join('');
+
+  // events
+  host.querySelectorAll('.qrpick').forEach(ch=>{
+    ch.addEventListener('change', e=>{
+      const id = e.target.dataset.id;
+      const row = e.target.closest('.pick-row');
+      if(e.target.checked){ selectedForQr.add(id); row?.classList.add('is-checked'); }
+      else { selectedForQr.delete(id); row?.classList.remove('is-checked'); }
+      syncSelectAllCheckbox();
+    });
+  });
+  // keyboard toggle with Space
+  host.querySelectorAll('.pick-row').forEach(row=>{
+    row.addEventListener('keydown', (e)=>{
+      if(e.code==='Space'){ e.preventDefault(); const cb=row.querySelector('.qrpick'); cb.checked=!cb.checked; cb.dispatchEvent(new Event('change',{bubbles:true})); }
+    });
+  });
+
+  syncSelectAllCheckbox();
+}
+
+function mountQrSelectorUI(){
+  const anchor = document.querySelector('#page-export .row:last-child');
+  if(!anchor) return;
+  // หลีกเลี่ยงซ้อน
+  if(document.getElementById('qrPickWrap')){
+    renderQrSelector(); updateSelectedCTA(); return;
+  }
+
+  const wrap = document.createElement('section');
+  wrap.id = 'qrPickWrap';
+  wrap.className = 'card soft';
+  wrap.style.marginTop = '12px';
+  wrap.innerHTML = `
+  <div class="qr-header">
+    <div class="qr-head-left">
+      <h3>เลือกอะไหล่เพื่อพิมพ์ QR</h3>
+      <div class="qr-controls">
+        <input id="qrPickQ" class="qr-search" placeholder="ค้นหา PartID / ชื่อ / รุ่น" />
+        <label class="qr-selectall">
+          <input type="checkbox" id="qrPickAll"> เลือกทั้งหมด (เฉพาะที่แสดง)
+        </label>
+      </div>
+    </div>
+    <div class="qr-head-right">
+      <div id="qrPickMeta" class="qr-meta">—</div>
+      <button id="btnPrintSelected" class="qr-cta is-disabled" disabled>
+        พิมพ์ QR (ที่เลือก) <span data-count></span>
+      </button>
+    </div>
+  </div>
+  <div id="qrPickPanel" class="pick-list"></div>
+
+  <style>
+    #qrPickWrap{--line:#e5e7eb; --ink:#0f172a; --muted:#64748b; --bg:#ffffff; --accent:#2563eb; --accent-weak:#e0e7ff}
+    #qrPickWrap h3{margin:0 0 8px 0; font-size:18px}
+    #qrPickWrap .qr-header{
+      display:flex; gap:12px; align-items:center; justify-content:space-between;
+      border-bottom:1px solid var(--line); padding-bottom:10px; margin-bottom:10px;
+      flex-wrap:wrap;
+    }
+    #qrPickWrap .qr-controls{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+    #qrPickWrap .qr-search{
+      width:min(300px, 60vw); padding:10px 12px; border:1px solid var(--line);
+      border-radius:12px; outline:none;
+    }
+    #qrPickWrap .qr-search:focus{ border-color:#93c5fd; box-shadow:0 0 0 3px rgba(147,197,253,.35) }
+    #qrPickWrap .qr-selectall{
+      display:inline-flex; align-items:center; gap:8px; padding:8px 12px;
+      border:1px dashed var(--line); border-radius:999px; background:#f8fafc; cursor:pointer;
+      user-select:none;
+    }
+    #qrPickWrap .qr-meta{color:var(--muted); font-size:14px; margin-right:8px}
+    #qrPickWrap .qr-cta{
+      display:inline-flex; align-items:center; gap:8px; padding:10px 14px;
+      background:var(--accent); color:#fff; border:none; border-radius:12px;
+      font-weight:700; cursor:pointer;
+    }
+    #qrPickWrap .qr-cta.is-disabled{opacity:.5; cursor:not-allowed}
+    #qrPickWrap .pick-list{display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:10px}
+    #qrPickWrap .pick-row{
+      display:flex; gap:12px; align-items:flex-start; background:var(--bg);
+      border:1px solid var(--line); border-radius:14px; padding:10px 12px; outline:none;
+      transition:border-color .15s, background .15s, box-shadow .15s;
+    }
+    #qrPickWrap .pick-row:hover{ border-color:#cbd5e1; box-shadow:0 1px 0 rgba(15,23,42,.04) }
+    #qrPickWrap .pick-row.is-checked{ background:#f0f7ff; border-color:#bfdbfe }
+    #qrPickWrap .pick-row:focus-visible{ box-shadow:0 0 0 3px rgba(147,197,253,.45) }
+    #qrPickWrap .qrpick{width:18px; height:18px; margin-top:3px}
+    #qrPickWrap .pick-main{display:grid; gap:4px}
+    #qrPickWrap .pick-title{display:flex; align-items:center; flex-wrap:wrap; gap:6px}
+    #qrPickWrap .tag{
+      font:600 12px/1 ui-sans-serif,system-ui; padding:4px 6px; border-radius:8px;
+      background:#f1f5f9; color:#334155; border:1px solid #e2e8f0;
+    }
+    #qrPickWrap .pick-sub{color:var(--muted); font-size:13px}
+    #qrPickWrap .empty{padding:24px; text-align:center; color:var(--muted)}
+    #qrPickWrap .empty .hint{margin-top:4px; font-size:13px}
+  </style>
+  `;
+
+  anchor.parentNode.insertBefore(wrap, anchor.nextSibling);
+
+  // events
+  document.getElementById('qrPickQ').addEventListener('input', renderQrSelector);
+  document.getElementById('qrPickAll').addEventListener('change', e=>{
+    const nodes = document.querySelectorAll('#qrPickPanel .qrpick');
+    nodes.forEach(ch=>{
+      ch.checked = e.target.checked;
+      const row = ch.closest('.pick-row');
+      const id = ch.dataset.id;
+      if(e.target.checked){ selectedForQr.add(id); row?.classList.add('is-checked'); }
+      else { selectedForQr.delete(id); row?.classList.remove('is-checked'); }
+    });
+    syncSelectAllCheckbox();
+  });
+  document.getElementById('btnPrintSelected').addEventListener('click', async ()=>{
+    const ids = Array.from(selectedForQr);
+    const parts = (state.parts||[]).filter(p=> ids.includes(p.PartID));
+    if(parts.length===0){ notify({title:'ยังไม่ได้เลือก', level:'warn'}); return; }
+    try{ await openPrintableQrSheet(parts); }catch(err){
+      notify({title:'สร้างแผ่นพิมพ์ไม่สำเร็จ', message: err?.message||'', level:'danger'});
+    }
+  });
+
+  renderQrSelector();
+}
+
 
 /* ===== Init ===== */
 loadAll();
 initBottomNav();
 updateAuthUI();
-
