@@ -56,6 +56,21 @@ button.secondary2{background:#ee4848;color:#0a0a0a}
 .legend .dot.red{background:#ef4444}.legend .dot.orange{background:#f59e0b}
 .alert-list{display:grid;gap:8px}
 .alert-item{display:flex;gap:10px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+/* Thumbnail ในรายการแจ้งเตือน */
+.alert-item{ gap:12px; }
+.alert-thumb{
+  flex: 0 0 72px;
+  width:72px; height:72px;
+  border-radius:12px;
+  object-fit:cover;
+  background:#f1f5f9;
+  border:1px solid var(--line);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
+}
+@media (max-width: 480px){
+  .alert-thumb{ width:56px; height:56px; border-radius:10px; }
+}
+
 .alert-title{font-weight:600}
 .alert-meta{font-size:12px;color:#64748b}
 .t-red{color:#b91c1c}.t-orange{color:#b45309}
@@ -304,8 +319,8 @@ body.modal-open{overflow:hidden}
 .page{padding:0}
 
 /* Alert bars */
-.alert-item.bar-red { border-left: 8px solid #e63946; }
-.alert-item.bar-orange { border-left: 8px solid #f4a261; }
+.alert-item.bar-red { border-left: 8px solid #e94956; }
+.alert-item.bar-orange { border-left: 8px solid #f2a96d; }
 
 /* =========================
    Modern Colorful Skin (History)
@@ -967,4 +982,199 @@ html, body, .container{ overflow-x:hidden; }
 .qrscan-toolbar .secondary{ background:#f8fafc; }
 .qr-tip{ font-size:12px; color:#64748b; }
 
+/* ===== Export: 2 คอลัมน์ + QR picker เต็มแถว ===== */
+#exportLayout{
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr;       /* mobile: 1 คอลัมน์ */
+}
+@media (min-width: 960px){
+  #exportLayout{ grid-template-columns: 1fr 1fr; }
+  #exCSV   { grid-column: 1; }
+  #exQRAct { grid-column: 2; }
+  #exQRPick{ grid-column: 1 / -1; } /* เต็มแถวด้านล่าง */
+}
 
+.ex-block{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:14px;
+}
+.ex-block h3{ margin:0 0 8px; font-weight:800; font-size:18px; }
+.ex-block .sub{ color:#64748b; font-size:13px; margin:-4px 0 10px; }
+
+#exCSV .csvForm{ display:grid; gap:10px; }
+#exCSV .ex-actions{ margin-top:8px; }
+.btn-wide{ width:100%; padding:12px 14px; border-radius:12px; font-weight:800; }
+
+/* ปุ่ม QR ให้เรียงแนวตั้งและเต็มความกว้าง */
+#exQRAct .qrAction{ display:grid; gap:10px; }
+#exQRAct .qrAction > button{ width:100%; }
+/* แถบควบคุมรวมหัวข้อ */
+.qr-controls{
+  display:flex; align-items:center; justify-content:space-between; gap:14px;
+  padding:12px 14px; border:1px solid #e5e7eb; border-radius:14px;
+  background: linear-gradient(180deg,#fff, #fafafb); box-shadow: 0 1px 0 rgba(15,23,42,.03);
+}
+.qr-left{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.qr-right{ display:flex; align-items:center; gap:10px; margin-left:auto; }
+
+/* ช่องค้นหามีไอคอน */
+.qr-search{ position:relative; min-width:260px; }
+.qr-search .ico{
+  position:absolute; left:10px; top:50%; transform:translateY(-50%);
+  width:18px; height:18px; color:#64748b;
+}
+.qr-search input{
+  width:100%; height:40px; padding:10px 12px 10px 34px;
+  border:1px solid #e5e7eb; border-radius:12px; outline:0; background:#fff;
+}
+.qr-search input:focus{
+  border-color:#93c5fd; box-shadow:0 0 0 3px rgba(147,197,253,.35);
+}
+
+/* ปุ่ม "เลือกทั้งหมด" แบบ pill + สวิตช์ */
+.qr-selectall{
+  display:inline-flex; align-items:center; gap:10px;
+  padding:10px 12px; border:1px dashed #e5e7eb; background:#f8fafc; border-radius:999px;
+  user-select:none; cursor:pointer;
+}
+.qr-selectall input{ position:absolute; opacity:0; pointer-events:none; }
+.qr-selectall .switch{
+  width:34px; height:20px; border-radius:999px; background:#e5e7eb; position:relative;
+  transition:background .2s ease;
+}
+.qr-selectall .switch::after{
+  content:""; position:absolute; left:2px; top:2px; width:16px; height:16px; border-radius:50%;
+  background:#fff; box-shadow:0 1px 1px rgba(0,0,0,.08); transition:transform .2s ease;
+}
+.qr-selectall input:checked + .switch{ background:#2563eb; }
+.qr-selectall input:checked + .switch::after{ transform:translateX(14px); }
+.qr-selectall .txt{ font-weight:700; color:#0f172a; }
+.qr-selectall small{ color:#64748b; }
+
+/* สรุปผลลัพธ์ */
+.qr-meta{ color:#475569; font-size:14px; }
+.qr-meta b{ font-weight:800; }
+
+/* empty state สวย ๆ */
+.qr-empty{
+  text-align:center; color:#64748b; padding:28px 12px; border:1px dashed #e5e7eb;
+  border-radius:14px; background:#fafafa;
+}
+.qr-empty svg{ width:34px; height:34px; margin-bottom:6px; color:#94a3b8; }
+
+/* จอเล็ก: เรียงลง */
+@media (max-width:700px){
+  .qr-controls{ align-items:stretch; }
+  .qr-right{ width:100%; justify-content:flex-end; }
+  .qr-search{ min-width:200px; flex:1; }
+}
+/* กล่องเลือก QR ทั้งชุดให้เลื่อนในตัวเอง */
+#qrPickWrap{
+  max-height: 72vh;          /* ปรับได้ 65–80vh */
+  overflow: auto;
+  border-radius: 14px;
+}
+
+/* แถบควบคุมบนสุด (ค้นหา/เลือกทั้งหมด/สรุป) ให้อยู่ติดด้านบน */
+#qrControlsBar{
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: linear-gradient(180deg,#fff,#fafafb);
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* ปุ่ม CTA พิมพ์ (ที่เลือก) ให้ติดล่างของ panel */
+#btnPrintSelected.sticky {
+  position: sticky;
+  bottom: 8px;
+  z-index: 2;
+}
+/* ทำลิสต์เตือนเป็น 2 คอลัมน์บนจอใหญ่ */
+#dashAlerts{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(380px, 1fr)); /* ปรับค่ากว้างขั้นต่ำได้ */
+  gap: 12px;
+  align-items: stretch;
+}
+
+/* จอเล็กกลับเป็นคอลัมน์เดียว */
+@media (max-width: 1100px){
+  #dashAlerts{
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ปรับการ์ดให้วางในกริดสวย ๆ */
+.alert-item{
+  position: relative;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 1px 0 rgba(15,23,42,.04);
+}
+
+/* ถ้ามีแถบสีซ้าย (bar-red / bar-orange) อยู่แล้ว ให้ทำเป็น pseudo แทน margin */
+.alert-item.bar-red::before,
+.alert-item.bar-orange::before{
+  content: "";
+  position: absolute;
+  left: 0; top: 10px; bottom: 10px;
+  width: 4px;
+  border-radius: 999px;
+}
+.alert-item.bar-red::before{ background:#ef4444; }
+.alert-item.bar-orange::before{ background:#f59e0b; }
+
+/* ข้อความ “มีทั้งหมด X รายการ …” ให้กินเต็มแถวในกริด */
+#dashAlerts .meta{
+  grid-column: 1 / -1;
+}
+
+/* ===== Stock Alerts — Pretty status bar ===== */
+.alert-item{
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+}
+
+/* เส้นสถานะด้านซ้ายแบบไล่เฉด + เงา */
+.alert-item::before{
+  content:"";
+  position:absolute;
+  left:10px; top:10px; bottom:10px;
+  width:8px; border-radius:999px;
+  background: var(--bar, #94a3b8);
+  box-shadow:
+    0 0 0 2px rgba(255,255,255,.9) inset,
+    0 4px 10px rgba(0,0,0,.08);
+}
+
+/* โทนสีหลัก (ไล่เฉดนุ่ม ๆ) */
+.alert-item.status-out     { --bar: linear-gradient(180deg,#fecaca,#ef4444); } /* หมด */
+.alert-item.status-near    { --bar: linear-gradient(180deg,#fde68a,#f59e0b); } /* ใกล้หมด */
+.alert-item.status-low     { --bar: linear-gradient(180deg,#fed7aa,#fb923c); } /* ต่ำกว่า Min */
+.alert-item.status-ok      { --bar: linear-gradient(180deg,#bbf7d0,#22c55e); } /* ปกติ (เผื่ออนาคต) */
+
+/* สีตัวอักษรหัวข้อให้แมทช์กับสถานะ */
+.alert-title{ font-weight:800 }
+.alert-item.status-out  .alert-title{ color:#dc2626 }
+.alert-item.status-near .alert-title{ color:#b45309 }
+.alert-item.status-low  .alert-title{ color:#b45309 }
+
+/* ป้ายจุดสถานะใน legend (สวย/คมขึ้น) */
+.legend .dot{
+  display:inline-block; width:10px; height:10px; border-radius:50%;
+  box-shadow: 0 1px 0 rgba(0,0,0,.15), inset 0 0 0 2px rgba(255,255,255,.7);
+  margin-right:6px; vertical-align:-1px;
+}
+.legend .dot--out  { background:#ef4444; }
+.legend .dot--near { background:#f59e0b; }
+.legend .dot--low  { background:#fb923c; }
