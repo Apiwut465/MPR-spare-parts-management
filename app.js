@@ -192,28 +192,46 @@ function renderDashboard(){
   if(alerts.length===0){
     wrap.innerHTML='<div class="meta">ยังไม่มีรายการที่ต้องรีสต็อก</div>';
   }else{
-    alerts.slice(0, limit).forEach(({p,st})=>{
-      const it = document.createElement('div'); 
-      it.className='alert-item';
-      if(st==='หมด') it.classList.add('bar-red');
-      else it.classList.add('bar-orange');
+alerts.slice(0, limit).forEach(({p,st})=>{
+  const it = document.createElement('div'); 
+  it.className='alert-item';
+  if(st==='หมด') it.classList.add('bar-red');
+  else it.classList.add('bar-orange');
 
-      const body = document.createElement('div'); body.style.flex='1';
-      const title = document.createElement('div'); 
-      title.className='alert-title '+(st==='หมด'?'t-red':'t-orange'); 
-      // ✅ ไทยล้วน
-      title.textContent = `${p.Name || p.PartID || ''} • รุ่น ${p.Model||''}`;
+  // รูปตัวอย่าง (ถ้าไม่มีก็ใช้ placeholder)
+  const img = document.createElement('img');
+  img.className = 'alert-thumb';
+  img.loading   = 'lazy';
+  img.alt       = (p.Name || p.PartID || 'item') + ' image';
+  const placeholder = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72">
+       <rect width="100%" height="100%" rx="12" fill="#eef2f7"/>
+       <text x="50%" y="54%" text-anchor="middle" font-size="12" fill="#94a3b8" font-family="system-ui, -apple-system">no image</text>
+     </svg>`
+  );
+  img.src = p.ImageURL || placeholder;
+  img.onerror = ()=>{ img.src = placeholder; };
+  
 
-      const meta  = document.createElement('div'); 
-      meta.className='alert-meta'; 
-      // ✅ "ขั้นต่ำ" แทน Min
-      meta.textContent = `คงเหลือ ${p.Qty??0} • ขั้นต่ำ ${p.Min??0} • ${p.Brand||'-'} • ${p.Location||'-'} • ${p.PartID||'-'}`;
+  const body = document.createElement('div'); 
+  body.style.flex='1';
 
-      body.appendChild(title); 
-      body.appendChild(meta); 
-      it.appendChild(body); 
-      wrap.appendChild(it);
-    });
+  const title = document.createElement('div'); 
+  title.className='alert-title '+(st==='หมด'?'t-red':'t-orange'); 
+  title.textContent = `${p.Name || p.PartID || ''} • รุ่น ${p.Model||''}`;
+
+  const meta  = document.createElement('div'); 
+  meta.className='alert-meta'; 
+  meta.textContent = `คงเหลือ ${p.Qty??0} • ขั้นต่ำ ${p.Min??0} • ${p.Brand||'-'} • ${p.Location||'-'} • ${p.PartID||'-'}`;
+
+  body.appendChild(title); 
+  body.appendChild(meta);
+
+  // ใส่รูปไว้ “ก่อน” ตัวเนื้อหา
+  it.appendChild(img);
+  it.appendChild(body);
+  wrap.appendChild(it);
+});
 
     if (alerts.length > limit && isFinite(limit)){
       const more = document.createElement('div');
@@ -364,16 +382,109 @@ function renderGallery(){
     btn.textContent='เบิก';
     btn.disabled = isOut;
     btn.title = isOut ? 'สินค้าหมดสต็อก' : '';
+    const adjBtn = document.createElement('button');
+adjBtn.textContent = 'นับ';
+adjBtn.className = 'secondary';
+adjBtn.addEventListener('click', ()=> openAdjustModal(p));
 
     btn.addEventListener('click', ()=>{
       if (isOut) return;
       const preset = Number(qty.value||0);
       openIssueModal(p, preset);
     });
+/* ===== Stocktake / Adjust ===== */
+let _adjustPart = null;
+
+function openAdjustModal(part){
+  _adjustPart = part;
+  const remain = Number(part.Qty||0);
+  $('#m2_img').src = part.ImageURL || '';
+  $('#m2_title').textContent = `${part.PartID} — ${part.Name||''}`;
+  $('#m2_meta').textContent  = `${part.Category||'-'} • คงเหลือระบบ ${remain} • ขั้นต่ำ ${part.Min??0} • ${part.Location||'-'}`;
+  $('#m2_qtyActual').value = '';
+  $('#m2_hint').textContent = '';
+  $('#m2_by').value = '';
+  $('#m2_note').value = '';
+
+  document.body.classList.add('modal-open');
+  $('#adjustModal').classList.add('show');
+  $('#adjustModal').setAttribute('aria-hidden','false');
+  setTimeout(()=> $('#m2_qtyActual').focus(), 0);
+}
+
+function closeAdjustModal(){
+  $('#adjustModal')?.classList.remove('show');
+  $('#adjustModal')?.setAttribute('aria-hidden','true');
+  document.body.classList.remove('modal-open');
+  _adjustPart = null;
+}
+$('#adjustModal [data-close]')?.addEventListener('click', closeAdjustModal);
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && $('#adjustModal')?.classList.contains('show')) closeAdjustModal(); });
+
+function _previewAdjustHint(){
+  const cur = Number(_adjustPart?.Qty||0);
+  const act = Number($('#m2_qtyActual').value||0);
+  const diff = act - cur;
+  const el = $('#m2_hint');
+  if(!el || isNaN(act)) return;
+  if(diff===0){ el.textContent = 'ยอดจริงเท่ากับยอดในระบบ — ไม่มีการเปลี่ยนแปลง'; return; }
+  el.textContent = diff>0 ? `จะรับเข้า +${diff} ชิ้น` : `จะเบิกออก ${Math.abs(diff)} ชิ้น`;
+}
+$('#m2_qtyActual')?.addEventListener('input', _previewAdjustHint);
+
+async function doConfirmAdjust(){
+  if(!_adjustPart) return;
+  const cur  = Number(_adjustPart.Qty||0);
+  const act  = Number($('#m2_qtyActual').value||NaN);
+  const by   = $('#m2_by').value.trim() || '(Stocktake)';
+  const note = $('#m2_note').value.trim();
+
+  if(!Number.isFinite(act) || act<0) return notify({title:'ยอดจริงไม่ถูกต้อง', level:'warn'});
+  const diff = act - cur;
+  if(diff===0){ notify({title:'ไม่พบส่วนต่าง', message:'ไม่ได้ปรับยอด', level:'info'}); return closeAdjustModal(); }
+
+  // DEMO: ปรับตรง + บันทึก txn ประเภท "ปรับ"
+  if(state.mode !== 'api'){
+    const i = state.parts.findIndex(p=>p.PartID===_adjustPart.PartID);
+    if(i<0) return closeAdjustModal();
+    state.parts[i] = { ...state.parts[i], Qty: act };
+    state.txns.push({
+      TxnID:'T-'+Date.now(),
+      Date:new Date().toISOString(),
+      PartID:_adjustPart.PartID,
+      Type:'ปรับ',
+      Qty: Math.abs(diff),
+      By: by,
+      Ref: `จาก ${cur} → ${act}${note? ' · '+note: ''}`
+    });
+    saveDemo();
+    notify({title:'ปรับยอดแล้ว', message:`${_adjustPart.PartID}: ${cur} → ${act}`});
+    renderDashboard(); renderGallery(); renderStock(); renderDatalists();
+    closeAdjustModal();
+    return;
+  }
+
+  // API: ใช้ RPC เดิม issue/receive เพื่อดันให้เท่ากับยอดจริง
+  try{
+    if(diff>0){
+      await window.apiPost('receive', { partId:_adjustPart.PartID, qty: diff });
+    }else{
+      await window.apiPost('issue', { partId:_adjustPart.PartID, qty: Math.abs(diff), by, machine:'', dept:'', note: `ปรับยอดจาก ${cur} เป็น ${act}${note? ' · '+note: ''}` });
+    }
+    try{ await refreshAllFromApi(); }catch{}
+    notify({title:'ปรับยอดแล้ว', message:`${_adjustPart.PartID}: ${cur} → ${act}`});
+    renderDashboard(); renderGallery(); renderStock(); renderDatalists();
+    closeAdjustModal();
+  }catch(err){
+    notify({title:'ปรับยอดไม่สำเร็จ', message: err?.message||'error', level:'danger'});
+  }
+}
+$('#m2_confirm')?.addEventListener('click', doConfirmAdjust);
 
     act.appendChild(qty);
     act.appendChild(document.createElement('div')).className='grow';
     act.appendChild(btn);
+    act.appendChild(adjBtn);
     card.appendChild(act);
 
     wrap.appendChild(card);
@@ -711,7 +822,11 @@ function renderHistory(){
   rows.forEach(t=>{
     const tr = document.createElement('tr');
     const thTime = new Date(t.Date).toLocaleString('th-TH', {hour12:false});
-    const badge = t.Type==='รับ' ? `<span class="badge in">รับเข้า</span>` : `<span class="badge out">เบิกออก</span>`;
+    const badge =
+  t.Type==='รับ'  ? `<span class="badge in">รับเข้า</span>` :
+  t.Type==='เบิก' ? `<span class="badge out">เบิกออก</span>` :
+                    `<span class="badge orange">ปรับ</span>`;
+
     const model = modelById.get(t.PartID) || '';
     tr.innerHTML = `
       <td>${thTime}</td>
@@ -2473,6 +2588,7 @@ async function openPrintableQrSheet(parts){
       else notify({title:'ไม่พบ QR ในรูป', level:'warn'});
     };
     img.onerror = ()=> notify({title:'เปิดรูปไม่สำเร็จ', level:'danger'});
+    
     img.src = URL.createObjectURL(file);
   }
 
@@ -2753,6 +2869,140 @@ function mountQrSelectorUI(){
 
   renderQrSelector();
 }
+(function tidyExportPage(){
+  const card = document.querySelector('#page-export .card');
+  if(!card || card.dataset.tidy) return;      // กันซ้ำ
+  card.dataset.tidy = '1';
+
+  // ===== 1) สร้างโครงกริดซ้าย–ขวา
+  const grid = document.createElement('div'); grid.className = 'export-grid';
+
+  // ซ้าย: ฟอร์ม + ตัวเลือก QR
+  const left = document.createElement('div');
+
+  // ขวา: แผงปุ่มการกระทำ (sticky)
+  const right = document.createElement('aside'); right.className = 'panel';
+  const actions = document.createElement('div'); actions.className = 'actions';
+  actions.innerHTML = `<h4>การส่งออก / พิมพ์</h4>`;
+  right.appendChild(actions);
+
+  // ===== 2) รวมฟอร์ม เดือน/ปี ให้เป็นบล็อกเดียว
+  const rows = Array.from(card.querySelectorAll(':scope > .row'));
+  if(rows.length){
+    const formPanel = document.createElement('section');
+    formPanel.className = 'panel export-form';
+    // ย้ายแถวฟอร์มใบแรก ๆ (เดือน/ปี) ลงบล็อกเดียวกัน
+    rows.slice(0, 2).forEach(r => formPanel.appendChild(r));
+    left.appendChild(formPanel);
+  }
+
+  // ===== 3) ย้ายบล็อก "เลือกอะไหล่เพื่อพิมพ์ QR" มาไว้ใต้ฟอร์ม
+  const qrWrap = document.getElementById('qrPickWrap');
+  if(qrWrap) left.appendChild(qrWrap);
+
+  // ===== 4) ย้ายปุ่มทั้งหมดไปคอลัมน์ขวา
+  const btnSheet = document.getElementById('btnExportQrSheet');
+  const btnAll   = document.getElementById('btnPrintAllQr');
+  const btnCsv   = document.getElementById('btnExportCsv');
+  [btnSheet, btnAll, btnCsv].forEach(b=>{
+    if(!b) return;
+    b.classList.add('btn-block');
+    actions.appendChild(b);
+  });
+
+  // แถบสรุปเล็ก ๆ ใต้ปุ่ม
+  const meta = document.createElement('div');
+  meta.id = 'exportMeta'; meta.className = 'meta';
+  actions.appendChild(meta);
+
+  // ===== 5) ประกอบเข้าการ์ด
+  grid.appendChild(left);
+  grid.appendChild(right);
+  card.appendChild(grid);
+
+  // ให้ตัวเลขสรุปอัปเดตตามจำนวนที่เลือกใน QR picker
+  function updateExportMeta(){
+    const total = (state.parts||[]).length;
+    const sel   = (typeof selectedForQr!=='undefined') ? selectedForQr.size : 0;
+    const m = document.getElementById('exportMeta');
+    if(m) m.textContent = `ทั้งหมด ${total.toLocaleString()} รายการ • เลือกพิมพ์ ${sel.toLocaleString()}`;
+  }
+  updateExportMeta();
+
+  // hook จากฟังก์ชันของ QR picker ให้เรียกสรุปด้วย
+  const __oldUpdateCTA = window.updateSelectedCTA;
+  window.updateSelectedCTA = function(){
+    if(typeof __oldUpdateCTA === 'function') __oldUpdateCTA();
+    updateExportMeta();
+  };
+})();
+/* ============ Export layout: split into CSV / QR actions / QR picker ============ */
+(function exportLayoutArrange(){
+  function arrangeExportSections(){
+    const card = document.querySelector('#page-export .card');
+    if(!card || card.dataset.arranged === '1') return;
+
+    // layout wrapper
+    const wrap = document.createElement('div');
+    wrap.id = 'exportLayout';
+    wrap.innerHTML = `
+      <section class="ex-block" id="exCSV">
+        <h3>ส่งออกประวัติ (CSV)</h3>
+        <div class="sub">เลือกเดือน/ปี แล้วกดส่งออก</div>
+        <div class="csvForm"></div>
+        <div class="ex-actions"><button id="__exCsvBtn" class="btn-wide">ส่งออก CSV</button></div>
+      </section>
+
+      <section class="ex-block" id="exQRAct">
+        <h3>QR Code</h3>
+        <div class="sub">คำสั่งพิมพ์ QR</div>
+        <div class="qrAction"></div>
+      </section>
+
+      <section class="ex-block" id="exQRPick">
+        <h3>เลือกอะไหล่เพื่อพิมพ์ QR</h3>
+        <div id="exQrMount"></div>
+      </section>
+    `;
+    card.appendChild(wrap);
+    card.dataset.arranged = '1';
+
+    /* ---- ย้ายฟอร์มเดือน/ปี (แถวเดิม 2 แถวแรกในการ์ด) ---- */
+    const rows = Array.from(card.querySelectorAll(':scope > .row'));
+    const csvForm = wrap.querySelector('#exCSV .csvForm');
+    if (rows[0]) csvForm.appendChild(rows[0]);
+    if (rows[1]) csvForm.appendChild(rows[1]);
+
+    // map ปุ่ม CSV เก่า → ปุ่มใหม่
+    const oldCsvBtn = document.getElementById('btnExportCsv');
+    const newCsvBtn = document.getElementById('__exCsvBtn');
+    if (oldCsvBtn && newCsvBtn) newCsvBtn.onclick = (e)=>{ e.preventDefault(); oldCsvBtn.click(); };
+
+    /* ---- ย้ายปุ่ม QR actions ไปบล็อกขวา ---- */
+    const actHost = wrap.querySelector('#exQRAct .qrAction');
+    ['btnExportQrSheet','btnPrintAllQr','btnPrintSelected'].forEach(id=>{
+      const b = document.getElementById(id);
+      if (b) actHost.appendChild(b);
+    });
+
+    /* ---- ย้ายตัวเลือก QR picker (ทั้งชุด) ไปบล็อกล่าง ---- */
+    const picker = document.getElementById('qrPickWrap');
+    if (picker) wrap.querySelector('#exQrMount').appendChild(picker);
+  }
+
+  // run หลัง from initExportPage (ซึ่งสร้าง qrPickWrap)
+  const __old_initExportPage = window.initExportPage;
+  window.initExportPage = function(){
+    __old_initExportPage && __old_initExportPage();
+    // ให้แน่ใจว่า qrPickWrap ถูกสร้างก่อน
+    setTimeout(arrangeExportSections, 0);
+  };
+
+  // เผื่อผู้ใช้รีเฟรชขณะอยู่หน้าสendออก
+  if (document.querySelector('#page-export')) {
+    setTimeout(arrangeExportSections, 0);
+  }
+})();
 
 
 /* ===== Init ===== */
