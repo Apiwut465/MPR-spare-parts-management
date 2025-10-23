@@ -290,6 +290,44 @@
       </div>
     </div>
   </div>
+<!-- Adjust Modal (Stocktake) -->
+<div id="adjustModal" class="modal" aria-hidden="true">
+  <div class="modal__backdrop" data-close></div>
+  <div class="modal__panel" role="dialog" aria-modal="true">
+    <div class="modal__head">
+      <button class="modal__close" type="button" data-close aria-label="ปิด">×</button>
+      <div class="modal__title">ปรับยอด (นับสต็อก)</div>
+    </div>
+    <div class="modal__body">
+      <div class="summary">
+        <img id="m2_img" class="thumb-lg" alt="">
+        <div>
+          <div id="m2_title" class="name"></div>
+          <div id="m2_meta" class="meta"></div>
+        </div>
+      </div>
+      <div class="m-row">
+        <label>ยอดจริงที่นับได้</label>
+        <input id="m2_qtyActual" type="number" min="0" placeholder="เช่น 12">
+        <div class="meta" id="m2_hint"></div>
+      </div>
+      <div class="grid grid-2">
+        <div class="m-row">
+          <label>ผู้ตรวจ/ผู้ปรับ</label>
+          <input id="m2_by" placeholder="ชื่อผู้ตรวจ">
+        </div>
+        <div class="m-row">
+          <label>บันทึก</label>
+          <input id="m2_note" placeholder="เช่น นับปลายเดือน/พบของเสีย 2 ชิ้น">
+        </div>
+      </div>
+    </div>
+    <div class="modal__foot">
+      <button class="secondary" data-close>ยกเลิก</button>
+      <button id="m2_confirm">บันทึกยอดจริง</button>
+    </div>
+  </div>
+</div>
 
   <div class="modal" id="editModal" aria-hidden="true" role="dialog" aria-modal="true">
     <div class="modal__backdrop" data-close></div>
