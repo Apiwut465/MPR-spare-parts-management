@@ -3003,8 +3003,6 @@ function mountQrSelectorUI(){
     setTimeout(arrangeExportSections, 0);
   }
 })();
-
-
 /* ===== Init ===== */
 loadAll();
 initBottomNav();
