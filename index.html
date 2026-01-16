@@ -2,723 +2,409 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Spare Parts Stock</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <title>MPR Stock Manager</title>
 
-  <!-- ฟอนต์ Prompt -->
-  <link
-    href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap"
-    rel="stylesheet"
-  />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="app">
-    <!-- HEADER -->
-    <header class="app-header">
-      <div>
-        <h1 data-i18n="appTitle">Spare Parts Stock</h1>
-        <p data-i18n="appSubtitle">
-          ระบบจัดการสต็อกอะไหล่สำหรับ Maintenance &amp; ฝ่ายบัญชี
-        </p>
-      </div>
 
-      <div class="header-actions" style="display:flex;align-items:center;gap:8px;">
-        <div class="lang-switch">
-          <button id="langTh" class="btn btn-secondary btn-sm">TH</button>
-          <button id="langEn" class="btn btn-ghost btn-sm">EN</button>
-        </div>
-        <button
-          id="btnRefresh"
-          class="btn btn-outline btn-sm"
-          data-i18n="btnRefresh"
-        >
-          รีเฟรชข้อมูล
-        </button>
-      </div>
-    </header>
+<div class="app">
+  <header class="app-header">
+    <div class="logo">
+      <h1><i class="fa-solid fa-cubes-stacked"></i> MPR STOCK</h1>
+      <p>ระบบจัดการอะไหล่ซ่อมบำรุงแผนก MVR&MSR</p>
+    </div>
+    <button id="btnRefresh" class="btn-icon-soft" title="รีเฟรชข้อมูล">
+      <i class="fa-solid fa-rotate-right"></i>
+    </button>
+  </header>
 
-    <!-- DASHBOARD + MAIN TABS -->
-    <section class="dashboard">
-      <div class="stat-cards">
-        <div class="stat-card">
-          <div class="stat-label" data-i18n="statTotalPartsLabel">
-            จำนวนอะไหล่ทั้งหมด
-          </div>
-          <div class="stat-value" id="statTotalParts">0</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label" data-i18n="statNearLowLabel">
-            อะไหล่ใกล้หมด / ต่ำกว่า Min
-          </div>
-          <div class="stat-value" id="statNearLow">0</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label" data-i18n="statOutLabel">
-            หมดสต็อก
-          </div>
-          <div class="stat-value" id="statOut">0</div>
-        </div>
-      </div>
-
-      <div class="main-tabs">
-        <button
-          class="main-tab active"
-          data-screen="screen-plan"
-          data-i18n="tabPlan"
-        >
-          รายการที่ควรวางแผนซื้อ
-        </button>
-        <button
-          class="main-tab"
-          data-screen="screen-stock"
-          data-i18n="tabStock"
-        >
-          สต็อกอะไหล่
-        </button>
-        <button
-          class="main-tab"
-          data-screen="screen-issue"
-          data-i18n="tabIssue"
-        >
-          เบิกอะไหล่
-        </button>
-        <button
-          class="main-tab"
-          data-screen="screen-check"
-          data-i18n="tabCheck"
-        >
-          รีเช็คสต็อก
-        </button>
-        <button
-          class="main-tab"
-          data-screen="screen-history"
-          data-i18n="tabHistory"
-        >
-          ประวัติการเคลื่อนไหว
-        </button>
-        <button
-          class="main-tab"
-          data-screen="screen-qr"
-          data-i18n="tabQr"
-        >
-          พิมพ์ QR Code
-        </button>
-      </div>
-    </section>
-
-    <!-- SCREEN: PLAN (รายการที่ควรวางแผนสั่งซื้อ) -->
-    <section id="screen-plan" class="screen active">
-      <div class="panel">
-        <div class="alerts">
-          <h2 data-i18n="planTitle">รายการอะไหล่ที่ควรวางแผนสั่งซื้อ</h2>
-          <p class="alerts-subtitle" data-i18n="planSubtitle">
-            แสดงรายการอะไหล่ที่ใกล้หมด ต่ำกว่า Min หรือหมดสต็อก เพื่อใช้วางแผนจัดซื้อ
-          </p>
-
-          <div class="alerts-filters">
-            <div class="filters">
-              <select id="lowStatusFilter" class="filter-select">
-                <option value="all" data-i18n="lowStatusAll">ทุกสถานะ</option>
-                <option value="out" data-i18n="lowStatusOut">หมดสต็อก</option>
-                <option value="low" data-i18n="lowStatusLow">ต่ำกว่า Min</option>
-                <option value="near" data-i18n="lowStatusNear">ใกล้หมด</option>
-              </select>
-
-              <select id="lowCategoryFilter" class="filter-select">
-                <option value="all" data-i18n="lowCategoryAll">ทุกหมวดหมู่</option>
-              </select>
-
-              <input
-                id="lowSearch"
-                type="text"
-                class="filter-input"
-                placeholder="ค้นหาจากรหัส / ชื่อ / รุ่น"
-                data-i18n-placeholder="lowSearchPlaceholder"
-              />
-            </div>
-          </div>
-
-          <ul id="lowList"></ul>
-        </div>
-      </div>
-    </section>
-
-    <!-- SCREEN: STOCK TABLE -->
-    <section id="screen-stock" class="screen">
-      <div class="panel">
-        <div class="parts-panel">
-          <div class="panel-header">
-            <div>
-              <h2 data-i18n="stockPanelTitle">สต็อกอะไหล่ทั้งหมด</h2>
-              <div class="filters">
-                <input
-                  id="searchInput"
-                  type="text"
-                  class="filter-input"
-                  placeholder="ค้นหารหัส / ชื่อ / รุ่น / ยี่ห้อ"
-                  data-i18n-placeholder="stockSearchPlaceholder"
-                />
-
-                <select id="statusFilter" class="filter-select">
-                  <option value="all" data-i18n="stockStatusAll">ทุกสถานะ</option>
-                  <option value="ok" data-i18n="stockStatusOk">ปกติ</option>
-                  <option value="near" data-i18n="stockStatusNear">ใกล้หมด</option>
-                  <option value="low" data-i18n="stockStatusLow">ต่ำกว่า Min</option>
-                  <option value="out" data-i18n="stockStatusOut">หมดสต็อก</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="export-controls">
-              <span class="export-label" data-i18n="exportLabel">
-                ส่งออกรายการ:
-              </span>
-              <select id="exportScope" class="filter-select">
-                <option value="critical" data-i18n="exportScopeCritical">
-                  ใกล้หมด / ต่ำกว่า Min / หมด
-                </option>
-                <option value="out" data-i18n="exportScopeOut">เฉพาะหมดสต็อก</option>
-                <option value="all" data-i18n="exportScopeAll">ทั้งหมด</option>
-              </select>
-              <button
-                id="btnExportCsv"
-                class="btn btn-sm btn-primary"
-                data-i18n="btnExportCsv"
-              >
-                ส่งออก CSV
-              </button>
-            </div>
-          </div>
-
-          <div class="table-wrapper">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Part ID</th>
-                  <th data-i18n="thName">ชื่ออะไหล่</th>
-                  <th data-i18n="thCategory">หมวดหมู่</th>
-                  <th data-i18n="thBrand">ยี่ห้อ</th>
-                  <th data-i18n="thModel">รุ่น</th>
-                  <th data-i18n="thMin" class="number">Min</th>
-                  <th data-i18n="thQty" class="number">คงเหลือ</th>
-                  <th data-i18n="thLocation">ที่เก็บ</th>
-                  <th data-i18n="thActions" style="text-align:right;">จัดการ</th>
-                </tr>
-              </thead>
-              <tbody id="partsTbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- SCREEN: ISSUE -->
-    <section id="screen-issue" class="screen">
-      <div class="panel">
-        <h2 data-i18n="issuePanelTitle">เบิกอะไหล่</h2>
-
-        <div class="layout">
-          <!-- meta form -->
-          <div class="issue-meta">
-            <div class="cols-2">
-              <div class="form-row">
-                <label for="issueBy" data-i18n="issueByLabel">
-                  ผู้เบิก / ช่าง
-                </label>
-                <input
-                  type="text"
-                  id="issueBy"
-                  placeholder="เช่น Thames / Apiwut"
-                />
-              </div>
-              <div class="form-row">
-                <label for="issueDept" data-i18n="issueDeptLabel">
-                  แผนก
-                </label>
-                <select id="issueDept">
-                  <option value="" data-i18n="issueDeptPlaceholder">
-                    -- เลือกแผนก --
-                  </option>
-                </select>
-              </div>
-            </div>
-
-            <div class="cols-2">
-              <div class="form-row">
-                <label for="issueMachine" data-i18n="issueMachineLabel">
-                  เครื่องจักร
-                </label>
-                <select id="issueMachine">
-                  <option value="" data-i18n="issueMachinePlaceholder">
-                    -- เลือกเครื่องจักร --
-                  </option>
-                </select>
-              </div>
-              <div class="form-row">
-                <label for="issueNote" data-i18n="issueNoteLabel">
-                  หมายเหตุ
-                </label>
-                <input
-                  type="text"
-                  id="issueNote"
-                  placeholder="เช่น เปลี่ยนตอนซ่อมเครื่อง Door Liner No.2"
-                />
-              </div>
-            </div>
-
-            <div class="form-actions">
-              <button
-                id="btnScanQr"
-                type="button"
-                class="btn btn-primary btn-sm"
-                data-i18n="issueScanQr"
-              >
-                สแกน QR เพื่อเลือกอะไหล่
-              </button>
-            </div>
-          </div>
-
-          <!-- filters for issue -->
-          <div class="issue-filters">
-            <div class="issue-filters-row">
-              <input
-                id="issueSearch"
-                type="text"
-                class="filter-input"
-                placeholder="ค้นหาจากรหัส / ชื่อ / รุ่น / ยี่ห้อ"
-                data-i18n-placeholder="issueSearchPlaceholder"
-              />
-            </div>
-            <div class="issue-filters-row">
-              <select id="issueStatusFilter" class="filter-select">
-                <option value="all" data-i18n="issueStatusAll">ทุกสถานะ</option>
-                <option value="ok" data-i18n="issueStatusOk">ปกติ</option>
-                <option value="near" data-i18n="issueStatusNear">ใกล้หมด</option>
-                <option value="low" data-i18n="issueStatusLow">ต่ำกว่า Min</option>
-                <option value="out" data-i18n="issueStatusOut">หมดสต็อก</option>
-              </select>
-
-              <select id="issueCategoryFilter" class="filter-select">
-                <option value="all" data-i18n="issueCategoryAll">ทุกหมวดหมู่</option>
-              </select>
-            </div>
-          </div>
-
-          <div id="issueCards" class="card-grid"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- SCREEN: CHECK STOCK -->
-    <section id="screen-check" class="screen">
-      <div class="panel">
-        <h2 data-i18n="checkPanelTitle">รีเช็คสต็อก</h2>
-
-        <div class="check-controls">
-          <label>
-            <span data-i18n="checkDateLabel">วันที่รีเช็ค</span>
-            <input type="date" id="checkDate" />
-          </label>
-          <label>
-            <span data-i18n="checkByLabel">ผู้เช็ค</span>
-            <input type="text" id="checkBy" placeholder="เช่น Thames" />
-          </label>
-          <span class="check-progress">
-            <span data-i18n="checkProgressLabel">เช็คแล้ว</span>
-            : <span id="checkDone">0</span> /
-            <span id="checkTotal">0</span>
-          </span>
-        </div>
-
-        <div class="issue-filters">
-          <div class="issue-filters-row">
-            <input
-              id="checkSearch"
-              type="text"
-              class="filter-input"
-              placeholder="ค้นหาจากรหัส / ชื่อ / รุ่น / ยี่ห้อ"
-              data-i18n-placeholder="checkSearchPlaceholder"
-            />
-          </div>
-        </div>
-
-        <div id="checkCards" class="card-grid"></div>
-      </div>
-    </section>
-
-    <!-- SCREEN: HISTORY -->
-    <section id="screen-history" class="screen">
-      <div class="panel">
-        <h2 data-i18n="historyTitle">ประวัติการเคลื่อนไหวล่าสุด</h2>
-        <p class="alerts-subtitle" data-i18n="historySubtitle">
-          แสดง 50 รายการล่าสุดของการเบิก / รับเข้าสต็อก
-        </p>
-
-        <div class="table-wrapper">
-          <table class="table">
-            <thead>
-              <tr>
-                <th data-i18n="historyThDateTime">วันที่ / เวลา</th>
-                <th data-i18n="historyThType">ประเภท</th>
-                <th>Part ID</th>
-                <th class="number" data-i18n="historyThQty">จำนวน</th>
-                <th data-i18n="historyThBy">โดย</th>
-                <th data-i18n="historyThNote">หมายเหตุ</th>
-              </tr>
-            </thead>
-            <tbody id="txnsTbody"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- SCREEN: QR SELECT -->
-    <section id="screen-qr" class="screen">
-      <div class="panel qr-panel">
-        <h2 data-i18n="qrPanelTitle">พิมพ์ QR Code</h2>
-
-        <div class="qr-select-header">
-          <div class="filters">
-            <input
-              id="qrSearch"
-              type="text"
-              class="filter-input"
-              placeholder="ค้นหาจาก PartID / ชื่อ / รุ่น / ยี่ห้อ / หมวดหมู่"
-              data-i18n-placeholder="qrSearchPlaceholder"
-            />
-          </div>
-          <div class="qr-select-actions">
-            <div>
-              <button
-                id="qrSelectAllVisible"
-                class="btn btn-xs btn-secondary"
-                data-i18n="qrSelectAllVisible"
-              >
-                เลือกทั้งหมด (เฉพาะที่เห็น)
-              </button>
-              <button
-                id="qrClearAll"
-                class="btn btn-xs btn-ghost"
-                data-i18n="qrClearAll"
-              >
-                ล้างการเลือก
-              </button>
-            </div>
-            <div class="qr-select-summary">
-              <span data-i18n="qrResultLabel">รายการทั้งหมด</span>:
-              <span id="qrResultCount">0</span> •
-              <span data-i18n="qrSelectedLabel">เลือกแล้ว</span>:
-              <span id="qrSelectedCount">0</span>
-            </div>
-          </div>
-        </div>
-
-        <div id="qrSelectList" class="qr-select-grid"></div>
-
-        <div class="qr-print-actions">
-          <button
-            id="btnPrintSelectedQr"
-            class="btn btn-primary"
-            data-i18n="qrPrintSelectedQr"
-          >
-            พิมพ์ QR ที่เลือก (A6)
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- FOOTER STATUS -->
-    <footer class="app-footer">
-      <div id="statusLine" class="status info">
-        พร้อมใช้งาน
-      </div>
-    </footer>
-  </div>
-
-  <!-- MODAL: PART EDIT / RECEIVE -->
-  <div id="partModal" class="modal hidden">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 class="modal-title" data-i18n="partModalTitle">จัดการอะไหล่</h3>
-        <button class="modal-close">✕</button>
-      </div>
-
-      <div class="tabs">
-        <button
-          class="tab active"
-          data-tab="tab-part"
-          data-i18n="tabPartInfo"
-        >
-          เพิ่ม / แก้ไขอะไหล่
-        </button>
-        <button
-          class="tab"
-          data-tab="tab-receive"
-          data-i18n="tabReceive"
-        >
-          รับเข้าสต็อก
-        </button>
-      </div>
-
-      <div id="tab-part" class="tab-content active">
-        <form id="formPart" class="form">
-          <div class="cols-2">
-            <div class="form-row">
-              <label for="partPartID" data-i18n="formPartIdLabel">
-                รหัสอะไหล่ <span class="req">*</span>
-              </label>
-              <input
-                list="partIdList"
-                id="partPartID"
-                type="text"
-                placeholder="เช่น MPR-D2-0001"
-              />
-              <datalist id="partIdList"></datalist>
-            </div>
-            <div class="form-row">
-              <label for="partName" data-i18n="formNameLabel">
-                ชื่ออะไหล่ <span class="req">*</span>
-              </label>
-              <input
-                id="partName"
-                type="text"
-                placeholder="เช่น Air Valve, Sensor, Bearing..."
-              />
-            </div>
-          </div>
-
-          <div class="cols-2">
-            <div class="form-row">
-              <label for="partCategory" data-i18n="formCategoryLabel">
-                หมวดหมู่
-              </label>
-              <input
-                id="partCategory"
-                type="text"
-                list="categoryList"
-                placeholder="เลือกจาก list หรือพิมพ์ใหม่"
-              />
-              <datalist id="categoryList"></datalist>
-            </div>
-            <div class="form-row">
-              <label for="partBrand" data-i18n="formBrandLabel">
-                ยี่ห้อ
-              </label>
-              <input id="partBrand" type="text" placeholder="เช่น SMC, Keyence, NSK" />
-            </div>
-          </div>
-
-          <div class="cols-2">
-            <div class="form-row">
-              <label for="partModel" data-i18n="formModelLabel">
-                รุ่น / Model
-              </label>
-              <input id="partModel" type="text" placeholder="เช่น GL-S16SH-R" />
-            </div>
-            <div class="form-row">
-              <label for="partLocation" data-i18n="formLocationLabel">
-                ที่เก็บ
-              </label>
-              <input id="partLocation" type="text" placeholder="เช่น C2/2, C4/3" />
-            </div>
-          </div>
-
-          <div class="cols-2">
-            <div class="form-row">
-              <label for="partMin" data-i18n="formMinLabel">
-                Min (จุดเตือน)
-              </label>
-              <input id="partMin" type="number" min="0" value="0" />
-            </div>
-            <div class="form-row">
-              <label for="partQty" data-i18n="formQtyLabel">
-                คงเหลือปัจจุบัน
-              </label>
-              <input id="partQty" type="number" min="0" value="0" />
-            </div>
-          </div>
-
-          <div class="form-row">
-            <label for="partImageURL" data-i18n="formImageUrlLabel">
-              ลิงก์รูปภาพ (ถ้ามี)
-            </label>
-            <input
-              id="partImageURL"
-              type="text"
-              placeholder="วาง URL รูปจาก Supabase / Google Drive / ฯลฯ"
-            />
-          </div>
-
-          <div class="form-row">
-            <label for="partImageFile" data-i18n="formImageFileLabel">
-              หรืออัปโหลดไฟล์รูป (จะอัปโหลดเข้า Supabase ให้อัตโนมัติ)
-            </label>
-            <input id="partImageFile" type="file" accept="image/*" />
-          </div>
-
-          <div
-            id="partImagePreviewRow"
-            class="form-row"
-            style="display:none;"
-          >
-            <label data-i18n="formImagePreviewLabel">พรีวิวรูป</label>
-            <img
-              id="partImagePreview"
-              src=""
-              alt="Part image preview"
-              style="max-width:200px;border-radius:12px;border:1px solid #e5e7eb;"
-            />
-          </div>
-
-          <div class="form-actions">
-            <button
-              type="submit"
-              class="btn btn-primary"
-              data-i18n="btnSavePart"
-            >
-              บันทึกอะไหล่
-            </button>
-            <button
-              type="button"
-              id="btnClearPart"
-              class="btn btn-secondary"
-              data-i18n="btnClearPart"
-            >
-              ล้างฟอร์ม
-            </button>
-          </div>
-        </form>
-      </div>
-
-      <div id="tab-receive" class="tab-content">
-        <form id="formReceive" class="form">
-          <div class="cols-2">
-            <div class="form-row">
-              <label for="receivePartID" data-i18n="receivePartIdLabel">
-                รหัสอะไหล่ที่รับเข้า
-              </label>
-              <input
-                id="receivePartID"
-                list="partIdList"
-                type="text"
-                placeholder="เลือกจาก list หรือพิมพ์"
-              />
-            </div>
-            <div class="form-row">
-              <label for="receiveQty" data-i18n="receiveQtyLabel">
-                จำนวนรับเข้า
-              </label>
-              <input id="receiveQty" type="number" min="1" value="1" />
-            </div>
-          </div>
-
-          <div class="form-actions">
-            <button
-              type="submit"
-              class="btn btn-primary"
-              data-i18n="btnSaveReceive"
-            >
-              บันทึกรับเข้าสต็อก
-            </button>
-            <button
-              type="button"
-              id="btnClearReceive"
-              class="btn btn-secondary"
-              data-i18n="btnClearReceive"
-            >
-              ล้างฟอร์ม
-            </button>
-          </div>
-        </form>
-      </div>
+  <div class="stat-cards">
+    <div class="stat-card card-blue">
+      <div class="stat-icon"><i class="fa-solid fa-box-open"></i></div>
+      <div class="stat-val" id="statTotalParts">0</div>
+      <div class="stat-label">รายการอะไหล่ทั้งหมด</div>
+    </div>
+    <div class="stat-card card-orange">
+      <div class="stat-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div class="stat-val" id="statNearLow">0</div>
+      <div class="stat-label">ต้องเติมสต็อก (Low/Min)</div>
+    </div>
+    <div class="stat-card card-red">
+      <div class="stat-icon"><i class="fa-solid fa-circle-xmark"></i></div>
+      <div class="stat-val" id="statOut">0</div>
+      <div class="stat-label">สินค้าหมด (Out of Stock)</div>
     </div>
   </div>
 
-  <!-- MODAL: PART DETAIL -->
-  <div id="partDetailModal" class="modal hidden">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 data-i18n="partDetailTitle">รายละเอียดอะไหล่</h3>
-        <button class="modal-close">✕</button>
-      </div>
-      <div id="partDetailBody" class="part-detail-body"></div>
-    </div>
-  </div>
+  <nav class="nav-container">
+    <button class="nav-btn active" data-screen="screen-plan">
+      <i class="fa-solid fa-clipboard-list"></i> วางแผนสั่งซื้อ
+    </button>
+    <button class="nav-btn" data-screen="screen-stock">
+      <i class="fa-solid fa-boxes-stacked"></i> สต็อกอะไหล่
+    </button>
+    <button class="nav-btn" data-screen="screen-issue">
+      <i class="fa-solid fa-dolly"></i> เบิกอะไหล่
+    </button>
+    <button class="nav-btn" data-screen="screen-check">
+      <i class="fa-solid fa-list-check"></i> รีเช็คสต็อก
+    </button>
+    <button class="nav-btn" data-screen="screen-history">
+      <i class="fa-solid fa-clock-rotate-left"></i> ประวัติ
+    </button>
+    <button class="nav-btn" data-screen="screen-qr">
+      <i class="fa-solid fa-qrcode"></i> พิมพ์ QR
+    </button>
+  </nav>
 
-  <!-- MODAL: SINGLE QR -->
-  <div id="qrModal" class="modal hidden">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 data-i18n="qrModalTitle">QR Code สำหรับอะไหล่</h3>
-        <button class="modal-close">✕</button>
+  <section id="screen-plan" class="screen active">
+    <div class="main-panel">
+      <div class="panel-header">
+        <h2><i class="fa-solid fa-bell" style="color:#ff7675;"></i> รายการแจ้งเตือน</h2>
+        <span style="color:#636e72;">รายการที่ต้องดำเนินการสั่งซื้อทันที</span>
       </div>
-      <div id="qrModalBody" class="qr-modal-body"></div>
-      <div class="form-actions" style="margin-top:12px;justify-content:flex-end;">
-        <button
-          id="btnQrPrint"
-          type="button"
-          class="btn btn-primary btn-sm"
-          data-i18n="qrPrintOne"
-        >
-          พิมพ์ป้าย A6 รายการนี้
+      <div id="lowList"></div>
+    </div>
+  </section>
+
+  <section id="screen-stock" class="screen">
+    <div class="main-panel">
+      <div class="panel-header">
+        <h2><i class="fa-solid fa-layer-group" style="color:#74b9ff;"></i> รายการสต็อกทั้งหมด</h2>
+        <div style="display:flex; gap:10px;">
+          <select id="exportScope" class="form-select" style="width:auto; padding-top:8px; padding-bottom:8px;">
+            <option value="critical">เฉพาะตัวที่ขาด</option>
+            <option value="all">ทั้งหมด</option>
+          </select>
+          <button id="btnExportCsv" class="btn btn-outline"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
+        </div>
+      </div>
+      
+      <div class="filter-row">
+        <div class="input-group">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="searchInput" class="form-input" placeholder="ค้นหา รหัส, ชื่อ, รุ่น..." />
+        </div>
+        <select id="statusFilter" class="form-select" style="max-width:200px;">
+          <option value="all">สถานะทั้งหมด</option>
+          <option value="ok">ปกติ (OK)</option>
+          <option value="low">ต่ำกว่า Min</option>
+          <option value="out">หมดสต็อก</option>
+        </select>
+        
+        <div style="display:flex; gap:10px;">
+            <button class="btn btn-primary" onclick="openPartModal(null)">
+              <i class="fa-solid fa-plus"></i> เพิ่มอะไหล่ใหม่
+            </button>
+            <button class="btn btn-success" id="btnOpenReceive">
+              <i class="fa-solid fa-download"></i> รับของเข้า
+            </button>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Part ID</th>
+              <th>ชื่ออะไหล่</th>
+              <th>หมวดหมู่</th>
+              <th>รุ่น/ยี่ห้อ</th>
+              <th style="text-align:center;">Min</th>
+              <th style="text-align:center;">คงเหลือ</th>
+              <th>ที่เก็บ</th>
+              <th style="text-align:right;">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="partsTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="screen-issue" class="screen">
+    <div class="main-panel">
+      <div class="panel-header">
+        <h2><i class="fa-solid fa-hand-holding-box" style="color:#00b894;"></i> เบิกจ่ายอะไหล่</h2>
+        <button class="btn btn-success" onclick="startQrScan()">
+          <i class="fa-solid fa-expand"></i> สแกน QR เบิกของ
         </button>
       </div>
-    </div>
-  </div>
 
-  <!-- MODAL: QR SCAN -->
-  <div id="qrScanModal" class="modal hidden">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content qr-scan-panel">
-      <div class="modal-header">
-        <h3 data-i18n="qrScanTitle">สแกน QR จากกล้อง</h3>
-        <button class="modal-close">✕</button>
-      </div>
-      <div class="qr-scan-body">
-        <div class="qr-video-frame">
-          <div class="qr-video-inner">
-            <video id="qrVideo" autoplay muted playsinline></video>
-            <div class="qr-scan-line"></div>
-            <div class="qr-corner top-left"></div>
-            <div class="qr-corner top-right"></div>
-            <div class="qr-corner bottom-left"></div>
-            <div class="qr-corner bottom-right"></div>
+      <div style="background:#f1f2f6; padding:20px; border-radius:15px; margin-bottom:25px;">
+        <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+          <div>
+            <label>ผู้เบิก <span style="color:red">*</span></label>
+            <input type="text" id="issueBy" class="form-input" placeholder="ชื่อสกุล" />
+          </div>
+          <div>
+            <label>เครื่องจักร</label>
+            <input type="text" id="issueMachine" list="machineList" class="form-input" placeholder="เลือก/พิมพ์" />
+            <datalist id="machineList"></datalist>
+          </div>
+          <div>
+            <label>แผนก</label>
+            <input type="text" id="issueDept" list="deptList" class="form-input" />
+            <datalist id="deptList"></datalist>
+          </div>
+          <div>
+            <label>หมายเหตุ</label>
+            <input type="text" id="issueNote" class="form-input" placeholder="-" />
           </div>
         </div>
-        <div class="qr-scan-hint" data-i18n="qrScanHint">
-          เล็งกล้องไปที่ QR Code ระบบจะค้นหาอะไหล่ให้อัตโนมัติเมื่อสแกนสำเร็จ
+      </div>
+
+      <div class="filter-row">
+        <div class="input-group">
+          <i class="fa-solid fa-search"></i>
+          <input type="text" id="issueSearch" class="form-input" placeholder="ค้นหาอะไหล่ที่จะเบิก..." />
         </div>
-        <div class="qr-scan-footer">
-          <button
-            type="button"
-            class="btn btn-secondary"
-            onclick="hideModal('qrScanModal')"
-            data-i18n="qrScanClose"
-          >
-            ปิด
-          </button>
+        <select id="issueCategoryFilter" class="form-select" style="max-width:200px;">
+          <option value="all">ทุกหมวดหมู่</option>
+        </select>
+      </div>
+
+      <div id="issueCards" class="card-grid"></div>
+    </div>
+  </section>
+
+  <section id="screen-check" class="screen">
+    <div class="main-panel">
+      <div class="panel-header">
+        <h2><i class="fa-solid fa-clipboard-check" style="color:#6c5ce7;"></i> รีเช็คสต็อก</h2>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <input type="date" id="checkDate" class="form-input" style="padding:8px;" />
+          <input type="text" id="checkBy" class="form-input" placeholder="ผู้ตรวจนับ" style="width:150px; padding:8px;" />
         </div>
       </div>
+      
+      <div class="filter-row">
+        <div class="input-group">
+          <i class="fa-solid fa-search"></i>
+          <input type="text" id="checkSearch" class="form-input" placeholder="ค้นหาเพื่อตรวจนับ..." />
+        </div>
+        <button class="btn btn-outline" onclick="startQrScan()"><i class="fa-solid fa-qrcode"></i> สแกน</button>
+      </div>
+
+      <div style="margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:0.9rem;">
+          <span>ความคืบหน้า</span>
+          <span><span id="checkDone">0</span> / <span id="checkTotal">0</span></span>
+        </div>
+        <div style="height:8px; background:#dfe6e9; border-radius:4px; overflow:hidden;">
+          <div id="checkProgress" style="height:100%; width:0%; background:var(--primary-grad); transition:width 0.3s;"></div>
+        </div>
+      </div>
+
+      <div id="checkCards" class="card-grid"></div>
     </div>
+  </section>
+
+  <section id="screen-history" class="screen">
+    <div class="main-panel">
+      <div class="panel-header">
+        <h2><i class="fa-solid fa-timeline"></i> ประวัติการเคลื่อนไหวล่าสุด</h2>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>เวลา</th>
+              <th>ประเภท</th>
+              <th>Part ID</th>
+              <th>จำนวน</th>
+              <th>ผู้ทำรายการ</th>
+              <th>รายละเอียด</th>
+            </tr>
+          </thead>
+          <tbody id="txnsTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="screen-qr" class="screen">
+    <div class="main-panel">
+      <div class="panel-header">
+        <h2><i class="fa-solid fa-print"></i> เลือกอะไหล่พิมพ์ QR Code</h2>
+        <button id="btnPrintSelectedQr" class="btn btn-primary">
+          <i class="fa-solid fa-print"></i> พิมพ์ที่เลือก (<span id="qrSelectedCount">0</span>)
+        </button>
+      </div>
+      <div class="filter-row">
+        <div class="input-group">
+          <i class="fa-solid fa-search"></i>
+          <input type="text" id="qrSearch" class="form-input" placeholder="ค้นหา..." />
+        </div>
+        <button id="qrSelectAllVisible" class="btn btn-outline">เลือกทั้งหมด</button>
+        <button id="qrClearAll" class="btn btn-outline" style="color:#ff7675; border-color:#ff7675;">ล้าง</button>
+      </div>
+      <div id="qrSelectList" class="card-grid"></div>
+    </div>
+  </section>
+
+</div> <div id="partModal" class="modal">
+  <div class="modal-backdrop"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>จัดการข้อมูลอะไหล่</h3>
+      <button class="close-modal"><i class="fa-solid fa-times"></i></button>
+    </div>
+    
+    <form id="formPart">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Part ID (รหัส)</label>
+          <input type="text" id="partPartID" class="form-input" required />
+        </div>
+        <div class="form-group">
+          <label>ชื่ออะไหล่</label>
+          <input type="text" id="partName" class="form-input" required />
+        </div>
+        <div class="form-group">
+          <label>หมวดหมู่</label>
+          <input type="text" id="partCategory" list="categoryList" class="form-input" />
+          <datalist id="categoryList"></datalist>
+        </div>
+        <div class="form-group">
+          <label>ยี่ห้อ</label>
+          <input type="text" id="partBrand" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label>รุ่น / Model</label>
+          <input type="text" id="partModel" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label>ที่เก็บ (Location)</label>
+          <input type="text" id="partLocation" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label>Min (จุดสั่งซื้อ)</label>
+          <input type="number" id="partMin" class="form-input" min="0" />
+        </div>
+        <div class="form-group">
+          <label>Qty (คงเหลือ)</label>
+          <input type="number" id="partQty" class="form-input" min="0" />
+        </div>
+        
+        <div class="form-group full-width">
+          <label>รูปภาพ (URL หรือ อัปโหลด)</label>
+          <div style="display:flex; gap:10px; align-items:center;">
+             <input type="file" id="partImageFile" class="form-input" accept="image/*" style="flex:1;" />
+             <button type="button" id="btnRemoveImg" class="btn btn-outline" style="display:none; color:#ff7675; border-color:#ff7675; padding:8px 15px; white-space:nowrap;">
+                <i class="fa-solid fa-trash-can"></i> ลบรูป
+             </button>
+          </div>
+          <input type="hidden" id="partImageURL" />
+          <div id="imgPreviewBox" style="margin-top:15px; text-align:center; display:none; background:#f8f9fa; padding:15px; border-radius:12px; border:2px dashed #dfe6e9;">
+             <img id="imgPreview" src="" style="max-height:200px; max-width:100%; border-radius:8px;" />
+          </div>
+        </div>
+      </div>
+      <div style="text-align:right; margin-top:20px;">
+        <button type="submit" class="btn btn-primary">บันทึกข้อมูล</button>
+      </div>
+    </form>
   </div>
+</div>
 
-  <!-- Supabase & QR libs -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<div id="receiveModal" class="modal">
+  <div class="modal-backdrop"></div>
+  <div class="modal-content" style="max-width:500px; overflow:visible;">
+    <div class="modal-header">
+      <h3 style="color:#00b894;"><i class="fa-solid fa-download"></i> รับของเข้าสต็อก</h3>
+      <button class="close-modal"><i class="fa-solid fa-times"></i></button>
+    </div>
+    
+    <form id="formReceive">
+      <div class="form-group" style="position:relative;">
+        <label>ค้นหาอะไหล่ (พิมพ์ รหัส, ชื่อ หรือ โมเดล)</label>
+        
+        <input type="text" id="receiveSearchInput" class="form-input" placeholder="พิมพ์เพื่อค้นหา..." autocomplete="off" />
+        
+        <div id="receiveDropdown" class="custom-dropdown"></div>
+        
+        <input type="hidden" id="receivePartID" required />
+      </div>
+      
+      <div id="selectedPartInfo" style="display:none; background:#e6fffa; padding:10px; border-radius:8px; border:1px solid #b2f5ea; margin-bottom:15px;">
+         <div style="font-weight:bold; color:#00b894;" id="selPartName">-</div>
+         <div style="font-size:0.85rem; color:#636e72;">
+            ID: <span id="selPartID">-</span> | Model: <span id="selPartModel">-</span>
+         </div>
+      </div>
+      
+      <div class="form-group">
+        <label>จำนวนที่รับเข้า (+)</label>
+        <input type="number" id="receiveQty" class="form-input" min="1" required style="font-size:1.5rem; text-align:center; color:#00b894; font-weight:bold;" />
+      </div>
+      
+      <div style="margin-top:30px;">
+        <button type="submit" class="btn btn-success" style="width:100%; justify-content:center; padding:12px;">
+           <i class="fa-solid fa-check-circle"></i> ยืนยันรับของ
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
 
-  <script>
-    window.SUPA = {
-      url: 'https://utldpbyewkohuoyhzaat.supabase.co',
-      anon: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV0bGRwYnlld2tvaHVveWh6YWF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNjg4MTIsImV4cCI6MjA3MDc0NDgxMn0.65_11061GKODroeQFB_1vqBR54spYTs8oSgfujhMCoc'
-    };
-  </script>
-  <script src="app.js"></script>
+<div id="qrScanModal" class="modal">
+  <div class="modal-backdrop"></div>
+  <div class="modal-content" style="max-width:400px; text-align:center;">
+    <h3>สแกน QR Code</h3>
+    <div class="scanner-ui">
+      <video id="qrVideo" playsinline></video>
+      <div class="scan-line"></div>
+    </div>
+    <p>เล็งกล้องไปที่ QR Code ของอะไหล่</p>
+    <button class="btn btn-outline close-modal" style="width:100%; justify-content:center;">ยกเลิก</button>
+  </div>
+</div>
+
+<div id="qrDisplayModal" class="modal">
+  <div class="modal-backdrop"></div>
+  <div class="modal-content" style="max-width:350px; text-align:center;">
+    <div class="modal-header">
+      <h3>QR Code</h3>
+      <button class="close-modal"><i class="fa-solid fa-times"></i></button>
+    </div>
+    <div id="qrDisplayArea" style="display:flex; justify-content:center; margin-bottom:20px;"></div>
+    <h4 id="qrDisplayTitle"></h4>
+    <p id="qrDisplaySub" style="color:#636e72; font-size:0.9rem;"></p>
+    <button id="btnInitPrintSingle" class="btn btn-primary" style="width:100%; margin-top:15px; justify-content:center;">
+      <i class="fa-solid fa-print"></i> พิมพ์
+    </button>
+  </div>
+</div>
+
+<div id="detailModal" class="modal">
+  <div class="modal-backdrop"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>รายละเอียดอะไหล่</h3>
+      <button class="close-modal"><i class="fa-solid fa-times"></i></button>
+    </div>
+    <div id="detailBody"></div>
+  </div>
+</div>
+
+<div id="statusLine">พร้อมทำงาน</div>
+
+<div id="qrPrintArea" style="display:none;"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+
+<script src="app.js"></script>
+
 </body>
 </html>
-
