@@ -805,16 +805,32 @@ function tickScan() {
 function handleScan(txt) {
   stopScan();
   closeModal("qrScanModal");
+  
+  // ถอดรหัส QR (ตัดคำนำหน้า MPR: และส่วนท้ายออก)
   let pid = txt.startsWith("MPR:") ? txt.split("|")[0].replace("MPR:", "") : txt;
   
-  if($("#screen-issue").style.display === "block") {
-    $("#issueSearch").value = pid; renderIssueCards();
-  } else if($("#screen-check").style.display === "block") {
-    $("#checkSearch").value = pid; renderCheckCards();
+  // --- จุดที่แก้ไข: เช็คว่าหน้าไหนเปิดอยู่ โดยดูจาก Class "active" ---
+  if ($("#screen-issue").classList.contains("active")) {
+    // ถ้าอยู่หน้าเบิก
+    $("#issueSearch").value = pid; 
+    renderIssueCards(); // รีโหลดการ์ดให้โชว์เฉพาะตัวที่สแกน
+    showToast(`สแกนเจอ: ${pid}`, "success");
+    
+  } else if ($("#screen-check").classList.contains("active")) {
+    // ถ้าอยู่หน้ารีเช็ค
+    $("#checkSearch").value = pid; 
+    renderCheckCards();
+    showToast(`สแกนเจอ: ${pid}`, "success");
+    
   } else {
-    $("#searchInput").value = pid; renderParts();
+    // ถ้าอยู่หน้าสต็อก (หรือหน้าอื่นๆ) ให้ค้นหาในหน้าสต็อก
+    // (เผื่อกรณีสแกนแล้วอยากให้เด้งไปหน้าสต็อกอัตโนมัติ ให้เพิ่มบรรทัดนี้: )
+    // document.querySelector('[data-screen="screen-stock"]').click(); 
+    
+    $("#searchInput").value = pid; 
+    renderParts();
+    showToast(`สแกนเจอ: ${pid}`, "success");
   }
-  showToast(`สแกนเจอ: ${pid}`, "success");
 }
 
 function printQr() {
