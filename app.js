@@ -6,7 +6,8 @@ window.SUPA = {
   anon: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV0bGRwYnlld2tvaHVveWh6YWF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNjg4MTIsImV4cCI6MjA3MDc0NDgxMn0.65_11061GKODroeQFB_1vqBR54spYTs8oSgfujhMCoc'
 };
 
-const IMAGE_BUCKET = 'pr-images'; 
+// ใช้ชื่อ Bucket 'parts' ให้ตรงกับ Supabase
+const IMAGE_BUCKET = 'parts'; 
 
 let supa;
 let allParts = [];
@@ -38,7 +39,6 @@ document.addEventListener("DOMContentLoaded", () => {
    2. DATA & LOGIC
    ========================================= */
 
-// ฟังก์ชันแปลงชื่อคอลัมน์ให้เป็นมาตรฐาน (แก้ปัญหาตัวเล็ก/ใหญ่)
 function normalizePart(p) {
     return {
         PartID: p.PartID || p.partid || p.part_id || "",
@@ -53,10 +53,17 @@ function normalizePart(p) {
     };
 }
 
+// แก้ไขฟังก์ชัน refreshAll ให้โหลดตามลำดับ (Sequential)
 async function refreshAll() {
   showToast("กำลังโหลดข้อมูล...", "");
   try {
-      await Promise.all([loadParts(), loadTxns()]);
+      // 1. โหลดรายชื่ออะไหล่ให้เสร็จก่อน (สำคัญมาก!)
+      await loadParts();
+      
+      // 2. ค่อยโหลดประวัติ (ถึงจะเอาชื่อกับโมเดลมาแมตช์ได้)
+      await loadTxns();
+      
+      // 3. โหลดส่วนอื่นๆ
       await loadChecks();
       
       updateDashboard();
@@ -65,7 +72,7 @@ async function refreshAll() {
       renderCheckCards();
       renderQrList();
       
-      showToast(`โหลดข้อมูลสำเร็จ (${allParts.length} รายการ)`, "success");
+      showToast(`ข้อมูลอัปเดตแล้ว (${allParts.length} รายการ)`, "success");
   } catch (err) {
       console.error(err);
       showToast("เกิดข้อผิดพลาดในการโหลดข้อมูล", "error");
@@ -73,18 +80,15 @@ async function refreshAll() {
 }
 
 async function loadParts() {
-  // ดึงข้อมูลทั้งหมดจาก parts
-  const { data, error } = await supa.from("parts").select("*").order("PartID", {ascending: true}); // หรือ order by name
+  const { data, error } = await supa.from("parts").select("*").order("Name", {ascending: true});
   
   if(error) {
       console.error("Load Parts Error:", error);
       throw error;
   }
   
-  // แปลงข้อมูลผ่าน Normalizer
   allParts = (data || []).map(normalizePart);
   
-  // Update Datalists
   const cats = [...new Set(allParts.map(p=>p.Category).filter(Boolean))];
   updateDatalist("#categoryList", cats);
   updateDatalist("#issueCategoryFilter", cats, true);
@@ -104,8 +108,8 @@ async function loadTxns() {
   const { data, error } = await supa
     .from("txns")
     .select("*")
-    .order("Date", {ascending: false}) // หรือ created_at
-    .limit(50);
+    .order("Date", {ascending: false})
+    .limit(100);
 
   if(error) console.error("Load Txns Error:", error);
 
@@ -114,7 +118,7 @@ async function loadTxns() {
   tbody.innerHTML = "";
   
   if(!data || !data.length) {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:#b2bec3;">ยังไม่มีประวัติการเคลื่อนไหว</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#b2bec3;">ยังไม่มีประวัติการเคลื่อนไหว</td></tr>`;
       return;
   }
 
@@ -122,7 +126,6 @@ async function loadTxns() {
   if(table) table.className = "history-table";
 
   (data || []).forEach(item => {
-    // รองรับชื่อคอลัมน์ทั้งตัวเล็กและตัวใหญ่สำหรับ Txns
     const t = {
         Date: item.Date || item.date || item.created_at,
         Type: item.Type || item.type,
@@ -131,6 +134,11 @@ async function loadTxns() {
         By: item.By || item.by || item.user,
         Ref: item.Ref || item.ref || item.note
     };
+
+    // หา Model
+    const part = allParts.find(p => p.PartID === t.PartID) || {};
+    const partName = part.Name || '-';
+    const partModel = part.Model || '-';
 
     const tr = document.createElement("tr");
     tr.className = "history-row"; 
@@ -161,6 +169,12 @@ async function loadTxns() {
       </td>
       <td>${typeHtml}</td>
       <td><span class="h-part">${t.PartID || '-'}</span></td>
+      <td>
+        <div style="font-weight:600; color:#2d3436; font-size:0.9rem;">${partName}</div>
+        <div style="font-size:0.8rem; color:#636e72; background:#f1f2f6; display:inline-block; padding:0 5px; border-radius:4px;">
+           Model: ${partModel}
+        </div>
+      </td>
       <td style="color:${qtyColor};" class="h-qty">${t.Qty || 0}</td>
       <td style="font-weight:500;">${t.By || '-'}</td>
       <td style="color:#636e72; font-size:0.9rem;">${t.Ref || '-'}</td>
@@ -174,12 +188,11 @@ async function loadChecks() {
   if(!dateInput) return;
   const date = dateInput.value;
   
-  const { data, error } = await supa.from("stock_checks").select("*").eq("Date", date); // เช็คชื่อคอลัมน์ Date/date
+  const { data, error } = await supa.from("stock_checks").select("*").eq("Date", date);
   if(error) console.error("Load Checks Error:", error);
   
   checksByPartId = {};
   (data||[]).forEach(c => {
-      // รองรับตัวเล็กตัวใหญ่
       const pid = c.PartID || c.partid || c.part_id;
       const counted = c.QtyCounted !== undefined ? c.QtyCounted : c.qtycounted;
       if(pid) {
@@ -499,6 +512,41 @@ async function doCheck(id) {
   refreshAll();
 }
 
+// --- Export CSV Logic ---
+async function exportHistoryCsv() {
+    showToast("กำลังเตรียมไฟล์ CSV...", "");
+    const { data: txns, error } = await supa.from("txns").select("*").order("Date", {ascending: false});
+    if (error) return showToast("ไม่สามารถดึงข้อมูลได้", "error");
+
+    let csvContent = "\uFEFF"; // BOM for Thai support
+    csvContent += "วันที่,เวลา,ประเภท,Part ID,ชื่ออะไหล่,Model,จำนวน,ผู้ทำรายการ,รายละเอียด\n";
+
+    txns.forEach(t => {
+        const dateObj = new Date(t.Date);
+        const dateStr = dateObj.toLocaleDateString('th-TH');
+        const timeStr = dateObj.toLocaleTimeString('th-TH');
+        
+        const part = allParts.find(p => p.PartID === t.PartID) || {};
+        const name = (part.Name || "").replace(/,/g, " ");
+        const model = (part.Model || "").replace(/,/g, " ");
+        const typeRaw = (t.Type || '').toString().trim().toUpperCase();
+        const type = (['IN', 'รับเข้า', 'รับ', 'RECEIVE', 'ADD'].includes(typeRaw)) ? 'รับเข้า' : 'เบิกออก';
+        const detail = (t.Ref || "").replace(/,/g, " ");
+
+        csvContent += `${dateStr},${timeStr},${type},${t.PartID},"${name}","${model}",${t.Qty},${t.By},"${detail}"\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `history_stock_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("ดาวน์โหลดเสร็จสิ้น", "success");
+}
+
 /* =========================================
    5. MODALS & UTILS
    ========================================= */
@@ -512,6 +560,10 @@ function bindEvents() {
   });
   
   $("#btnRefresh").onclick = refreshAll;
+  
+  // Bind Export Button
+  const btnExport = $("#btnExportHistory");
+  if(btnExport) btnExport.onclick = exportHistoryCsv;
   
   $("#searchInput").oninput = renderParts;
   $("#statusFilter").onchange = renderParts;
@@ -527,7 +579,6 @@ function bindEvents() {
     $(`#${this.dataset.screen}`).classList.add("active");
   });
 
-  // ปุ่มเปิด Modal รับของเข้า (แยกใหม่)
   $("#btnOpenReceive").onclick = function() {
       $("#formReceive").reset();
       $("#receivePartID").value = "";
@@ -536,24 +587,26 @@ function bindEvents() {
       openModal("receiveModal");
   };
 
-  // Logic Custom Search Dropdown (รับของเข้า)
   const searchInput = $("#receiveSearchInput");
   const dropdown = $("#receiveDropdown");
 
-  searchInput.addEventListener("input", function() {
-      const text = this.value.toLowerCase().trim();
-      if(text.length < 1) {
-          dropdown.classList.remove("active");
-          return;
-      }
-      const matches = allParts.filter(p => {
-          const str = `${p.PartID} ${p.Name} ${p.Model || ''}`.toLowerCase();
-          return str.includes(text);
+  if(searchInput && dropdown) {
+      searchInput.addEventListener("input", function() {
+          const text = this.value.toLowerCase().trim();
+          if(text.length < 1) {
+              dropdown.classList.remove("active");
+              return;
+          }
+          const matches = allParts.filter(p => {
+              const str = `${p.PartID} ${p.Name} ${p.Model || ''}`.toLowerCase();
+              return str.includes(text);
+          });
+          renderDropdown(matches);
       });
-      renderDropdown(matches);
-  });
+  }
 
   function renderDropdown(list) {
+      if(!dropdown) return;
       dropdown.innerHTML = "";
       if(list.length === 0) {
           dropdown.innerHTML = `<div class="dropdown-item" style="color:#b2bec3; text-align:center;">ไม่พบข้อมูล</div>`;
@@ -577,6 +630,7 @@ function bindEvents() {
   }
 
   function selectPartReceive(p) {
+      if(!dropdown) return;
       $("#receivePartID").value = p.PartID;
       $("#receiveSearchInput").value = "";
       $("#selectedPartInfo").style.display = "block";
@@ -587,40 +641,63 @@ function bindEvents() {
   }
 
   document.addEventListener("click", (e) => {
-      if(!e.target.closest("#receiveModal")) {
+      if(dropdown && !e.target.closest("#receiveModal")) {
           dropdown.classList.remove("active");
       }
   });
 
-  // Image Upload Logic
-  $("#partImageFile").onchange = function(e) {
-      const file = e.target.files[0];
-      if (file) {
-          const reader = new FileReader();
-          reader.onload = function(ev) {
-              $("#imgPreview").src = ev.target.result;
-              $("#imgPreviewBox").style.display = "block";
-              $("#btnRemoveImg").style.display = "none";
-          };
-          reader.readAsDataURL(file);
-      }
-  };
+  const imgInput = $("#partImageFile");
+  if(imgInput) {
+      imgInput.onchange = function(e) {
+          const file = e.target.files[0];
+          if (file) {
+              const reader = new FileReader();
+              reader.onload = function(ev) {
+                  $("#imgPreview").src = ev.target.result;
+                  $("#imgPreviewBox").style.display = "block";
+                  $("#btnRemoveImg").style.display = "none";
+              };
+              reader.readAsDataURL(file);
+          }
+      };
+  }
 
-  $("#btnRemoveImg").onclick = function() {
-      if(confirm("ต้องการลบรูปภาพนี้ออกใช่ไหม?")) {
-          $("#partImageURL").value = "";
-          $("#partImageFile").value = "";
-          $("#imgPreview").src = "";
-          $("#imgPreviewBox").style.display = "none";
-          $("#btnRemoveImg").style.display = "none";
-      }
-  };
+  const btnRmImg = $("#btnRemoveImg");
+  if(btnRmImg) {
+      btnRmImg.onclick = function() {
+          if(confirm("ต้องการลบรูปภาพนี้ออกใช่ไหม?")) {
+              $("#partImageURL").value = "";
+              $("#partImageFile").value = "";
+              $("#imgPreview").src = "";
+              $("#imgPreviewBox").style.display = "none";
+              $("#btnRemoveImg").style.display = "none";
+          }
+      };
+  }
+}
+
+// --- Auto Run ID Logic ---
+function generateNextId() {
+    let max = 0;
+    allParts.forEach(p => {
+        // หาตัวเลขจากท้ายสตริง (เช่น MPR-005 -> 5)
+        const match = p.PartID.match(/(\d+)$/);
+        if(match) {
+            const num = parseInt(match[1], 10);
+            if(num > max) max = num;
+        }
+    });
+    const next = max + 1;
+    // สร้างรูปแบบ MPR-AUTO-XXXX (ปรับ prefix ได้ตามต้องการ)
+    return `MPR-AUTO-${String(next).padStart(4, '0')}`;
 }
 
 function openEdit(id) {
   const p = allParts.find(x => x.PartID === id);
   $("#partImageFile").value = "";
+  
   if(p) {
+    // Edit Mode
     $("#partPartID").value = p.PartID; $("#partPartID").readOnly = true;
     $("#partName").value = p.Name;
     $("#partCategory").value = p.Category || "";
@@ -639,8 +716,14 @@ function openEdit(id) {
         $("#btnRemoveImg").style.display = "none";
     }
   } else {
+    // Add New Mode -> Auto Run ID
     $("#formPart").reset();
+    
+    // Auto Generate ID and set to input
+    const newId = generateNextId();
+    $("#partPartID").value = newId;
     $("#partPartID").readOnly = false;
+    
     $("#imgPreviewBox").style.display = "none";
     $("#btnRemoveImg").style.display = "none";
     $("#partImageURL").value = "";
