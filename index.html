@@ -19,7 +19,7 @@
   <header class="app-header">
     <div class="logo">
       <h1><i class="fa-solid fa-cubes-stacked"></i> MPR STOCK</h1>
-      <p>ระบบจัดการอะไหล่ซ่อมบำรุงแผนก MVR&MSR</p>
+      <p>ระบบจัดการอะไหล่ซ่อมบำรุงที่ทันสมัย</p>
     </div>
     <button id="btnRefresh" class="btn-icon-soft" title="รีเฟรชข้อมูล">
       <i class="fa-solid fa-rotate-right"></i>
@@ -80,10 +80,6 @@
       <div class="panel-header">
         <h2><i class="fa-solid fa-layer-group" style="color:#74b9ff;"></i> รายการสต็อกทั้งหมด</h2>
         <div style="display:flex; gap:10px;">
-          <select id="exportScope" class="form-select" style="width:auto; padding-top:8px; padding-bottom:8px;">
-            <option value="critical">เฉพาะตัวที่ขาด</option>
-            <option value="all">ทั้งหมด</option>
-          </select>
           <button id="btnExportCsv" class="btn btn-outline"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
         </div>
       </div>
@@ -212,6 +208,9 @@
     <div class="main-panel">
       <div class="panel-header">
         <h2><i class="fa-solid fa-timeline"></i> ประวัติการเคลื่อนไหวล่าสุด</h2>
+        <button id="btnExportHistory" class="btn btn-outline">
+          <i class="fa-solid fa-file-csv"></i> Export CSV
+        </button>
       </div>
       <div class="table-wrapper">
         <table>
@@ -220,6 +219,7 @@
               <th>เวลา</th>
               <th>ประเภท</th>
               <th>Part ID</th>
+              <th>ชื่ออะไหล่ / Model</th>
               <th>จำนวน</th>
               <th>ผู้ทำรายการ</th>
               <th>รายละเอียด</th>
